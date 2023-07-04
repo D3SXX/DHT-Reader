@@ -2,7 +2,7 @@
 DHT-Reader
 ==============
 
-A Python program for scanning and analyzing data from DHT11, DHT21, and DHT22 sensors. The program can record data into a text file, Excel file, and a PNG image.
+A Python cli program for scanning and analyzing data from DHT11, DHT21, and DHT22 sensors. The program can record data into a text file, Excel file, and a PNG image.
 
 Introduction
 ------------
@@ -25,18 +25,6 @@ DHT-Reader depends on the following Python libraries:
 - `Adafruit_CircuitPython_DHT <https://github.com/adafruit/Adafruit_CircuitPython_DHT>`_
 - `matplotlib <https://github.com/matplotlib/matplotlib>`_
 - `XlsxWriter <https://github.com/jmcnamara/XlsxWriter>`_
-
-You can install these dependencies using pip3:
-
-.. code-block:: shell
-
-    pip3 install matplotlib xlsxwriter
-
-To install the dependencies system-wide, use the following command:
-
-.. code-block:: shell
-
-    sudo pip3 install matplotlib xlsxwriter
 
 Usage
 -----
