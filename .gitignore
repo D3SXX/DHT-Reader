@@ -1,0 +1,42 @@
+# Python-specific
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Compiled files
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# PyInstaller
+*.spec
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+.#*
+
+# Environment variables
+.env
+
+# IDE-specific
+.vscode/
+.idea/
+
+# Excel files
+*.xlsx
+
+# Image files
+*.png
+
+# Temporary files
+xl_tml

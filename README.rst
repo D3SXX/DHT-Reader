@@ -22,9 +22,9 @@ Dependencies
 
 DHT-Reader depends on the following Python libraries:
 
-- `Adafruit_CircuitPython_DHT <https://github.com/adafruit/Adafruit_CircuitPython_DHT>`
-- `matplotlib <https://github.com/matplotlib/matplotlib>`
-- `XlsxWriter <https://github.com/jmcnamara/XlsxWriter>`
+- `Adafruit_CircuitPython_DHT <https://github.com/adafruit/Adafruit_CircuitPython_DHT>`_
+- `matplotlib <https://github.com/matplotlib/matplotlib>`_
+- `XlsxWriter <https://github.com/jmcnamara/XlsxWriter>`_
 
 You can install these dependencies using pip3:
 
