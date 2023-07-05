@@ -371,9 +371,7 @@ read_config(allowtxt, allowxl, allowpng, delay_sec, allow_pulseio, data_reset, d
 # Initial the dht device, with data pin connected to:
 pin_value = getattr(board, "D" + str(pin))
 dhtDevice = device(pin_value, bool(allow_pulseio))
-#dhtDevice = device("board.D" + str(pin))
-#pin = board. + "D" + str(pin)
-#dhtDevice = device(pin)
+
 while True:
     clear_screen()
     try:
