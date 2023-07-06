@@ -1,7 +1,9 @@
-#DHT Reader v0.1 by DSXX
+#DHT Reader v0.2 beta by D3SXX
+
+#Consider use --skip argument, only default config is tested right now 
 
 try:
-    import os
+    import os # consider removing
     import time
     from datetime import datetime
     import configparser
@@ -9,11 +11,20 @@ try:
     import adafruit_dht
     import matplotlib.pyplot as plt
     import xlsxwriter
+    import argparse
+    import shutil
+    import curses
 except:
     print("Some dependencies are missing. Please run the following command to install them:")
     print("pip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter")
     raise SystemExit()
 
+parser = argparse.ArgumentParser(description='A DHT-Reader CLI Interface')
+parser.add_argument('--skip', action='store_true', help='Skip config check')
+
+
+
+        
 def highlight_word(word, flag):
     # Set the color based on the input parameter
     if flag == 3:
@@ -308,14 +319,14 @@ def write_to_xl(temperature, humidity, flag):
         plt.savefig(img_name, dpi=300, bbox_inches='tight')
         full_time = time.time() - start_time
         img_size = os.path.getsize(img_name)
-        print(f"\nAn image {img_name} ({img_size} bytes) was created in {full_time:.2f} seconds")
+        #print(f"\nAn image {img_name} ({img_size} bytes) was created in {full_time:.2f} seconds")
         if flag == 2:
             return 0
 
     # Create an Excel workbook and worksheet
-    print("\nThere are %d entries in the Excel\nThe amount of items: %d" % (a, a * 3))
-    print("The data that was added to the Excel:")
-    print(df)
+    #print("\nThere are %d entries in the Excel\nThe amount of items: %d" % (a, a * 3))
+    #print("The data that was added to the Excel:")
+    #print(df)
     workbook = xlsxwriter.Workbook('T_and_H.xlsx', {'strings_to_numbers': True})
     worksheet = workbook.add_worksheet()
     datetime_format = workbook.add_format({'num_format': 'dd/mm/yyyy, hh:mm:ss'})
@@ -364,43 +375,166 @@ def write_to_txt(temperature, humidity):
     print(f"\nThe data that was added to the T_and_H.txt:\n{date_time} Temperature: {temperature} Humidity: {humidity}")
 
 
-allowtxt, allowxl, allowpng, delay_sec, allow_pulseio, data_reset, device, pin = check_config()
+# Temporary solution for holding default values here
+args = parser.parse_args()
+allowtxt = 0
+allowxl = 0
+allowpng = 0
+delay_sec = 5
+allow_pulseio = 1
+data_reset = 0
+device = dht_convert("DHT11")
+pin = board.D4
 
-read_config(allowtxt, allowxl, allowpng, delay_sec, allow_pulseio, data_reset, device, pin)
+if not args.skip:
+        allowtxt, allowxl, allowpng, delay_sec, allow_pulseio, data_reset, device, pin = check_config()
+        read_config(allowtxt, allowxl, allowpng, delay_sec, allow_pulseio, data_reset, device, pin)
 
-# Initial the dht device, with data pin connected to:
-pin_value = getattr(board, "D" + str(pin))
-dhtDevice = device(pin_value, bool(allow_pulseio))
 
-while True:
-    clear_screen()
-    try:
-        #start_time, end_time and time_took are for calculation the time of delay of a sensor
-        humidity, temperature = None, None
-        start_time = time.time()
-        while humidity == None or temperature == None: #make readings until there are any values
-            try:
-                temperature = dhtDevice.temperature
-                humidity = dhtDevice.humidity
-            except RuntimeError as error:
-                # Errors happen fairly often, DHT's are hard to read, just keep going
-                if time.time() - start_time >= 5 and time.time() - start_time <= 7:
-                    print("Hmm, it takes too much time...\nPerhaps try to toggle pulseio or try to disable 1-wire mode in raspi-config\nThe error from the DHT Library is:\n")
-                    print(error.args[0])
-                elif time.time() - start_time >= 7:
-                    print(error.args[0])
-                time.sleep(2.0)
-                continue
+def main(stdscr):
+
+    
+    
+    # Set up the window
+    curses.curs_set(0)  # Hide the cursor
+    stdscr.nodelay(1)  # Non-blocking input
+    stdscr.timeout(1000)  # Refresh rate (milliseconds)
+    def draw_box():
+        stdscr.addstr(box_y, box_x, '+' + '-' * (box_width - 2) + '+')  # Top border
+        stdscr.addstr(box_y + box_height, box_x, '+' + '-' * (box_width - 2) + '+')  # Bottom border
+
+        # Draw the vertical lines
+        for y in range(box_y + 1, box_y + box_height):
+            stdscr.addstr(y, box_x, '|')  # Left border
+            stdscr.addstr(y, box_x + box_width - 1, '|')  # Right border        
         
-        end_time = time.time()
-        time_took = end_time - start_time
-        print("Temperature: {:.1f} | Humidity: {:.1f}".format(temperature,humidity))
-        print(f"The delay for sensor is {time_took:.3f} seconds. ")
+        
+    # Array for holding temperature and humidity
+    temperature_hold = [25]
+    humidity_hold = []
 
-        if allowtxt == 1:
-            write_to_txt(temperature,humidity)
-        if allowxl == 1 or allowpng == 1:
-            flat = 0
+
+    # Initial the dht device, with data pin connected to:
+    pin_value = getattr(board, "D" + str(pin))
+    dhtDevice = device(pin_value, bool(allow_pulseio))
+
+    while True:
+        try:
+            #start_time, end_time and time_took are for calculation the time of delay of a sensor
+            humidity, temperature = None, None
+            start_time = time.time()
+            while humidity == None or temperature == None: #make readings until there are any values
+                try:
+                    temperature = dhtDevice.temperature
+                    humidity = dhtDevice.humidity
+                except RuntimeError as error:
+                    # Errors happen fairly often, DHT's are hard to read, just keep going
+                    if time.time() - start_time >= 5 and time.time() - start_time <= 7:
+                        print("Hmm, it takes too much time...\nPerhaps try to toggle pulseio or try to disable 1-wire mode in raspi-config\nThe error from the DHT Library is:\n")
+                        print(error.args[0])
+                    elif time.time() - start_time >= 7:
+                        print(error.args[0])
+                        time.sleep(2.0)
+                        continue
+        
+            temperature_hold.append(temperature)
+            humidity_hold.append(humidity)
+            end_time = time.time()
+            time_took = end_time - start_time
+        
+        #print("Temperature: {:.1f} | Humidity: {:.1f}".format(temperature,humidity))
+        #print(f"The delay for sensor is {time_took:.3f} seconds. ")
+        
+            #display_interface(delay_sec,temperature_hold,humidity_hold)
+            i = delay_sec
+            while i>0:
+                    stdscr.clear()
+                    
+                    height, width = stdscr.getmaxyx()
+                    
+                    now = datetime.now()  
+                    current_time = "Current time: " + now.strftime("%d/%m/%Y, %H:%M:%S") + " Next update: T-" + str(i)  
+
+                    clock_x = (width - len(current_time)) // 2
+                    clock_y = 0
+                    
+                    # Draw the clock
+
+                    stdscr.addstr(clock_y, clock_x, current_time, curses.A_BOLD)
+                    
+                    # Draw a line
+                    y_line = 1
+                    
+                    stdscr.addstr(y_line, 0, "-" * width, curses.A_BOLD)
+                    
+                    # Draw info
+                    
+                    lower_y = 3
+                    lower_x = 2
+                    
+                    stdscr.addstr(lower_y, lower_x, "Model: " + dht_convert(device), curses.A_BOLD)
+                    stdscr.addstr(lower_y+1, lower_x, "Pin: " + str(pin), curses.A_BOLD)
+                    stdscr.addstr(lower_y+2, lower_x, "Temperature: " + str(temperature) + " C", curses.A_BOLD) # w.i.p. make it for Far. as well
+                    stdscr.addstr(lower_y+3, lower_x, "Humidity: " + str(humidity) + "%", curses.A_BOLD)
+                    stdscr.addstr(lower_y+4, lower_x, "Sensor delay: " + f"{time_took:.3f} Seconds", curses.A_BOLD)
+                    stdscr.addstr(lower_y+5, lower_x, "Press 'q' to exit", curses.A_BOLD)
+                    # Draw graph
+
+                    # Set up the graph box
+                    # Coordinates for initial box placement
+                    box_x = width*55//100
+                    box_y = 3
+                    
+                    # Box sizes
+                    box_width = (width - width // 4) // 2
+                    box_height = height // 2
+                    
+                    # Set up the graph
+                    graph_x = box_x + 1
+                    graph_x_axis = box_height // 2 + box_y
+
+                    draw_box()
+   
+                    # Calculate the scaling factors
+                    max_value = 50
+                    min_value = 0 # different for each sensor, this one if for DHT11 (wip)
+                    scale_factor = (max_value-min_value)/(box_height-2)
+                
+                    
+                    # Generate scaled values for demonstration
+                    scaled_values = [int(scale_factor * value) for value in range(box_height - 2, -1, -1)]
+                    
+                    for y, value in enumerate(scaled_values):
+                        stdscr.addstr(y + box_y + 1 , box_x + box_width + 1, str(value))
+                        
+                    
+                    # Draw the graph points (W.I.P.)
+                    medium = max_value // 2
+                    for k, value in enumerate(temperature_hold):
+                        x = 1 + k
+                        if value > medium:
+                            y = graph_x_axis + (value-medium)
+                        else:
+                            y = graph_x_axis - (value-medium)
+                        #y = graph_x_axis 
+                        stdscr.addch(y, box_x + x, "X")
+                    
+                    
+
+                    # Get user input
+                    key = stdscr.getch()
+
+                    # Exit the loop
+                    if key == ord('q'):
+                        return 0
+                    i -= 1
+                    # Refresh the screen
+                    stdscr.refresh()
+            
+            if allowtxt == 1:
+                write_to_txt(temperature,humidity)
+            if allowxl == 1 or allowpng == 1:
+                flat = 0
             if allowxl == 1 and allowpng == 1:
                 flag = 3
             elif allowxl == 1 and allowpng == 0:
@@ -409,11 +543,12 @@ while True:
                 flag = 2
             write_to_xl(temperature,humidity,flag)
             
-        delay_wait(delay_sec)
-    except Exception as error:
-            dhtDevice.exit()
-            raise error
-    except KeyboardInterrupt:
-            print("Quitting the program!")
-            raise SystemExit
+        #delay_wait(delay_sec)
+        except Exception as error:
+                dhtDevice.exit()
+                raise error
+        except KeyboardInterrupt:
+                print("Quitting the program!")
+                raise SystemExit
     
+curses.wrapper(main)
