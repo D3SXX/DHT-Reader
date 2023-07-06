@@ -51,17 +51,17 @@ def delay_wait(time_s):
 def dht_convert(device, flag=None):
     if device == "DHT11":
         if flag == 1:
-            highlight_word("\nSomething went wrong, is there enought entries in your config file?\n",0)
+            highlight_word("\nSomething went wrong, is there enough entries in your config file?\n",0)
             raise Exception
         return adafruit_dht.DHT11
     elif device == "DHT22":
         if flag == 1:
-            highlight_word("\nSomething went wrong, is there enought entries in your config file?\n",0)
+            highlight_word("\nSomething went wrong, is there enough entries in your config file?\n",0)
             raise Exception        
         return adafruit_dht.DHT22
     elif device == "DHT21":
         if flag == 1:
-            highlight_word("\nSomething went wrong, is there enought entries in your config file?\n",0)
+            highlight_word("\nSomething went wrong, is there enough entries in your config file?\n",0)
             raise Exception
         return adafruit_dht.DHT21
     elif device == adafruit_dht.DHT11:
