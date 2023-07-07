@@ -22,8 +22,13 @@ except:
 parser = argparse.ArgumentParser(description='A DHT-Reader CLI Interface')
 parser.add_argument('--skip', action='store_true', help='Skip config check')
 
+# Reset array and add its last element to the first place
 
-
+def reset_array(array, threshold):
+    if len(array) > threshold:
+        last_element = array.pop()
+        array.clear()
+        array.append(last_element)  
         
 def highlight_word(word, flag):
     # Set the color based on the input parameter
@@ -393,12 +398,30 @@ if not args.skip:
 
 def main(stdscr):
 
-    
+    ascii_logo = '''
+ __  _  _ _____   ___ ___  __  __  ___ ___  
+| _\| || |_   _| | _ | __|/  \| _\| __| _ \ 
+| v | >< | | |   | v | _|| /\ | v | _|| v / 
+|__/|_||_| |_|   |_|_|___|_||_|__/|___|_|_\\ 
+'''
     
     # Set up the window
     curses.curs_set(0)  # Hide the cursor
     stdscr.nodelay(1)  # Non-blocking input
     stdscr.timeout(1000)  # Refresh rate (milliseconds)
+    
+    # Init colors
+    curses.start_color()
+    curses.use_default_colors()
+    
+    # Define color pairs
+   # curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
+    curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)
+    curses.init_pair(2, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
+    curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
+    curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK)
+    stdscr.bkgd(' ', curses.color_pair(1) | curses.A_BOLD)
+    
     def draw_box():
         stdscr.addstr(box_y, box_x, '+' + '-' * (box_width - 2) + '+')  # Top border
         stdscr.addstr(box_y + box_height, box_x, '+' + '-' * (box_width - 2) + '+')  # Bottom border
@@ -409,10 +432,14 @@ def main(stdscr):
             stdscr.addstr(y, box_x + box_width - 1, '|')  # Right border        
         
         
+        
     # Array for holding temperature and humidity
-    temperature_hold = [25]
+    temperature_hold = []
     humidity_hold = []
 
+    errors_amount = 0
+    error_msg = []
+    error_happen = 0
 
     # Initial the dht device, with data pin connected to:
     pin_value = getattr(board, "D" + str(pin))
@@ -428,17 +455,15 @@ def main(stdscr):
                     temperature = dhtDevice.temperature
                     humidity = dhtDevice.humidity
                 except RuntimeError as error:
+                    
+                    error_msg.append(error.args[0])
+                    error_happen = 1
+                    break
                     # Errors happen fairly often, DHT's are hard to read, just keep going
-                    if time.time() - start_time >= 5 and time.time() - start_time <= 7:
-                        print("Hmm, it takes too much time...\nPerhaps try to toggle pulseio or try to disable 1-wire mode in raspi-config\nThe error from the DHT Library is:\n")
-                        print(error.args[0])
-                    elif time.time() - start_time >= 7:
-                        print(error.args[0])
-                        time.sleep(2.0)
-                        continue
-        
-            temperature_hold.append(temperature)
-            humidity_hold.append(humidity)
+
+            if not temperature == None: # prob. broken, w.i.p.
+                temperature_hold.append(temperature)
+                humidity_hold.append(humidity)
             end_time = time.time()
             time_took = end_time - start_time
         
@@ -449,6 +474,7 @@ def main(stdscr):
             i = delay_sec
             while i>0:
                     stdscr.clear()
+                    
                     
                     height, width = stdscr.getmaxyx()
                     
@@ -462,28 +488,75 @@ def main(stdscr):
 
                     stdscr.addstr(clock_y, clock_x, current_time, curses.A_BOLD)
                     
+                    # Add some icons on the top bar to indicate various things
+                    
+                    icon_x = clock_x + len(current_time) + 2
+                    
+                    if error_happen == 1:
+                        stdscr.addstr(clock_y, icon_x, "E",curses.color_pair(4) | curses.A_BOLD)
+                    
+                    
                     # Draw a line
                     y_line = 1
                     
-                    stdscr.addstr(y_line, 0, "-" * width, curses.A_BOLD)
+                    stdscr.addstr(y_line, 0, "-" * width, curses.color_pair(2) | curses.A_BOLD)
                     
                     # Draw info
                     
-                    lower_y = 3
+                    lower_y = 5
                     lower_x = 2
                     
-                    stdscr.addstr(lower_y, lower_x, "Model: " + dht_convert(device), curses.A_BOLD)
-                    stdscr.addstr(lower_y+1, lower_x, "Pin: " + str(pin), curses.A_BOLD)
-                    stdscr.addstr(lower_y+2, lower_x, "Temperature: " + str(temperature) + " C", curses.A_BOLD) # w.i.p. make it for Far. as well
-                    stdscr.addstr(lower_y+3, lower_x, "Humidity: " + str(humidity) + "%", curses.A_BOLD)
-                    stdscr.addstr(lower_y+4, lower_x, "Sensor delay: " + f"{time_took:.3f} Seconds", curses.A_BOLD)
-                    stdscr.addstr(lower_y+5, lower_x, "Press 'q' to exit", curses.A_BOLD)
+                    # Set up the info box
+                    # Coordinates for initial box placement
+                    box_x = 0
+                    box_y = 4
+                    
+                    # Box sizes
+                    box_width = int(width - width // 2.24) # Should always connect to the graph box (sometimes it won't)
+                    box_height = height // 2
+                    
+                    # Draw box and title
+                    box_name = "Information"
+                    
+                    # Turn on color pair to color the box
+                    stdscr.attron(curses.color_pair(2))
+                    draw_box()
+                    # Turn off color pair
+                    stdscr.attroff(curses.color_pair(2))     
+                    
+                                    
+                    # Calculate the x-coordinate to center the text
+                    
+                    
+                    
+                    text_x = box_x + box_width // 2 - len(box_name) // 2 
+                    stdscr.addstr(box_y-1, text_x, box_name, curses.A_BOLD)
+                    
+                    # Turn on color pair to color the text in the info box
+                    stdscr.attron(curses.color_pair(3))
+                    
+                    stdscr.addstr(lower_y, lower_x, "Model: " + dht_convert(device))
+                    lower_y += 1
+                    stdscr.addstr(lower_y, lower_x, "Pin: " + str(pin))
+                    lower_y += 1
+                    stdscr.addstr(lower_y, lower_x, "Temperature: " + str(temperature) + " C") # w.i.p. make it for Far. as well
+                    lower_y += 1
+                    stdscr.addstr(lower_y, lower_x, "Humidity: " + str(humidity) + "%" )
+                    lower_y += 1
+                    stdscr.addstr(lower_y, lower_x, "Sensor delay: " + f"{time_took:.3f} Seconds")
+                    lower_y += 1
+                    stdscr.addstr(lower_y, lower_x, "Press 'q' to exit")
+                    
+                    # Turn on color pair
+                    stdscr.attron(curses.color_pair(3))
+
+                    
                     # Draw graph
 
                     # Set up the graph box
                     # Coordinates for initial box placement
                     box_x = width*55//100
-                    box_y = 3
+                    box_y = 4
                     
                     # Box sizes
                     box_width = (width - width // 4) // 2
@@ -493,8 +566,22 @@ def main(stdscr):
                     graph_x = box_x + 1
                     graph_x_axis = box_height // 2 + box_y
 
+                    # Draw box and title
+                    graph_name = "Temperature"
+                    
+                    # Turn on color pair to color the box
+                    stdscr.attron(curses.color_pair(2))
                     draw_box()
-   
+                    # Turn off color pair
+                    stdscr.attroff(curses.color_pair(2))       
+          
+                    
+                    # Calculate the x-coordinate to center the text
+                    text_x = box_x + box_width // 2 - len(graph_name) // 2 
+                    
+                    stdscr.addstr(box_y-1, text_x, graph_name, curses.A_BOLD)
+                    #(width - len(current_time)) // 2
+                    
                     # Calculate the scaling factors
                     max_value = 50
                     min_value = 0 # different for each sensor, this one if for DHT11 (wip)
@@ -505,11 +592,17 @@ def main(stdscr):
                     scaled_values = [int(scale_factor * value) for value in range(box_height - 2, -1, -1)]
                     
                     for y, value in enumerate(scaled_values):
-                        stdscr.addstr(y + box_y + 1 , box_x + box_width + 1, str(value))
+                        stdscr.addstr(y + box_y + 1 , box_x + box_width + 1, str(value),curses.A_BOLD)
                         
                     
                     # Draw the graph points (W.I.P.)
                     medium = max_value // 2
+                    
+                    # Check if list is too big
+                    
+                    if len(temperature_hold) >= box_width-2:
+                        reset_array(temperature_hold, box_width-2)
+                    
                     for k, value in enumerate(temperature_hold):
                         x = 1 + k
                         if value > medium:
@@ -517,10 +610,78 @@ def main(stdscr):
                         else:
                             y = graph_x_axis - (value-medium)
                         #y = graph_x_axis 
-                        stdscr.addch(y, box_x + x, "X")
+                        stdscr.addch(y, box_x + x, "X", curses.A_BOLD)
                     
                     
+                    # set up w.i.p. error messages
+                    # Coordinates for initial box placement
+                    box_x = width*55//100
+                    box_y = box_y + height // 2
+                    
+                    # Box sizes
+                    box_width = (width - width // 4) // 2
+                    box_height = height // 4
+                    
+                    # Set up the graph
+                    graph_x = box_x + 1
+                    graph_x_axis = box_height // 2 + box_y
 
+                    # Draw box
+                    
+                    # Turn on color pair to color the box
+                    stdscr.attron(curses.color_pair(2))
+                    draw_box()
+                    # Turn off color pair
+                    stdscr.attroff(curses.color_pair(2))
+                    if not error_msg == None:
+                        
+                        # Check if the size of array is bigger than the box
+                        if len(error_msg) >= box_height-1:
+                            reset_array(error_msg, box_height-1)
+                            
+                        # Turn on color pair
+                        stdscr.attron(curses.color_pair(4))      
+                        for msg in error_msg:
+                            errors_amount += 1
+                            # Check if the error message is bigger than the width of the box and add \n to conpensate
+                            if len(msg) > box_width-2:
+                                msg_2 = msg[box_width-2:]
+                                msg = msg[:box_width-2] 
+                            stdscr.addstr(box_y+errors_amount , box_x+1, msg)
+                            if not msg_2 == None:
+                                pass
+                                errors_amount += 1 
+                                if errors_amount >= box_height-1:
+                                    # Perhaps not the best way to solve the issue of checking if the text will fit on display, but it works
+                                    error_msg = error_msg + error_msg
+                                    break
+                                stdscr.addstr(box_y+errors_amount , box_x+1, msg_2) 
+                        stdscr.attroff(curses.color_pair(4)) 
+                                            
+                                        
+                    
+                    # set up w.i.p.
+                    # Coordinates for initial box placement
+                    box_x = 0
+                    box_y = box_y
+                    
+                    # Box sizes
+                    box_width = int(width - width // 2.24)
+                    box_height = height // 4
+                    
+                    # Set up the graph
+                    graph_x = box_x + 1
+                    graph_x_axis = box_height // 2 + box_y
+
+                    # Draw box and title
+                    graph_name = "Temperature"
+                    
+                    # Turn on color pair to color the box
+                    stdscr.attron(curses.color_pair(2))
+                    draw_box()
+                    # Turn off color pair
+                    stdscr.attroff(curses.color_pair(2))  
+                    
                     # Get user input
                     key = stdscr.getch()
 
@@ -528,6 +689,8 @@ def main(stdscr):
                     if key == ord('q'):
                         return 0
                     i -= 1
+                    errors_amount = 0
+                    error_happen = 0
                     # Refresh the screen
                     stdscr.refresh()
             
