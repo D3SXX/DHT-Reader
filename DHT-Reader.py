@@ -22,6 +22,50 @@ except:
 parser = argparse.ArgumentParser(description='A DHT-Reader CLI Interface')
 parser.add_argument('--skip', action='store_true', help='Skip config check')
 
+
+class WindowData:
+    def __init__(self, width, height):
+        
+        top_window_y = 4
+        bottom_window_y = top_window_y + height // 2
+        #bottom_window_height = height
+        
+        
+        self.window_data = {
+            'window1': {
+                'box_x': 0,
+                'box_y': top_window_y,
+                'box_width': int(width - width // 2.24),  # Should always connect to the graph box (sometimes it won't)
+                'box_height': height // 2
+            },
+            'window2': {
+                'box_x': width*55//100,
+                'box_y': top_window_y,
+                'box_width': int(width - width // 4) // 2,
+                'box_height': height // 2
+            },
+            'window4': {
+                'box_x': width*55//100,
+                'box_y': bottom_window_y,
+                'box_width': (width - width // 4) // 2,
+                'box_height': height // 4
+            },
+            'window3': {
+                'box_x': 0,
+                'box_y': bottom_window_y,
+                'box_width': int(width - width // 2.24),
+                'box_height': height // 4
+            }
+        }
+
+    def get_window_coordinates(self, window_name):
+        if window_name in self.window_data:
+            return tuple(self.window_data[window_name].values())
+        else:
+            raise ValueError(f"Window '{window_name}' does not exist.")
+
+
+
 # Reset array and add its last element to the first place
 
 def reset_array(array, threshold):
@@ -29,6 +73,15 @@ def reset_array(array, threshold):
         last_element = array.pop()
         array.clear()
         array.append(last_element)  
+        
+        
+def save_and_reset_array(array, sentences_to_save=1):
+    array_length = len(array)
+    if array_length > sentences_to_save:
+        array_to_save = array[array_length - sentences_to_save:]
+        array.clear()
+        array.extend(array_to_save)
+        
         
 def highlight_word(word, flag):
     # Set the color based on the input parameter
@@ -384,16 +437,16 @@ def write_to_txt(temperature, humidity):
 args = parser.parse_args()
 allowtxt = 0
 allowxl = 0
-allowpng = 0
+allowimg = 0
 delay_sec = 5
 allow_pulseio = 1
-data_reset = 0
+reset_data = 0
 device = dht_convert("DHT11")
 pin = board.D4
 
 if not args.skip:
-        allowtxt, allowxl, allowpng, delay_sec, allow_pulseio, data_reset, device, pin = check_config()
-        read_config(allowtxt, allowxl, allowpng, delay_sec, allow_pulseio, data_reset, device, pin)
+        allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, data_reset, device, pin = check_config()
+        read_config(allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, data_reset, device, pin)
 
 
 def main(stdscr):
@@ -416,34 +469,213 @@ def main(stdscr):
     
     # Define color pairs
    # curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
-    curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)
-    curses.init_pair(2, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
-    curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
-    curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK)
+    curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK) # White and black
+    curses.init_pair(2, curses.COLOR_MAGENTA, curses.COLOR_BLACK) # Purple and black
+    curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK) # Green and black
+    curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK) # Red and black
     stdscr.bkgd(' ', curses.color_pair(1) | curses.A_BOLD)
     
-    def draw_box():
+    
+    
+    
+    def draw_box(box_y, box_x, box_width, box_height):
+        
+        # Turn on color pair to color the box
+        stdscr.attron(curses.color_pair(2))
+        # Draw the horizontal lines
         stdscr.addstr(box_y, box_x, '+' + '-' * (box_width - 2) + '+')  # Top border
         stdscr.addstr(box_y + box_height, box_x, '+' + '-' * (box_width - 2) + '+')  # Bottom border
 
         # Draw the vertical lines
         for y in range(box_y + 1, box_y + box_height):
             stdscr.addstr(y, box_x, '|')  # Left border
-            stdscr.addstr(y, box_x + box_width - 1, '|')  # Right border        
+            stdscr.addstr(y, box_x + box_width - 1, '|')  # Right border
+        
+        #Turn off color pair
+        stdscr.attroff(curses.color_pair(2))
+        
+    def cli_draw_interface():
+        
+        # Set up the info box
+        
+        box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window1')
+                            
+        # Draw box
+                    
+        draw_box(box_y, box_x, box_width, box_height)
+        
+        # Set up the graph box
+        
+        box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window2')
+
+        # Set up the graph
+        graph_x = box_x + 1
+        graph_x_axis = box_height // 2 + box_y
+
+        # Draw box 
+                    
+        draw_box(box_y, box_x, box_width, box_height)
+        
+        # Set up error messages box
+        
+        box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window4')
+
+        # Draw box
+                    
+        draw_box(box_y, box_x, box_width, box_height)
+
+        
+        # Set up logs box
+        
+        box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window3')
+                    
+
+        # Draw box
+        
+        draw_box(box_y, box_x, box_width, box_height)
+    
+    def cli_top_bar():
+        # Draw top bar
+                    
+        now = datetime.now()  
+        current_time = "Current time: " + now.strftime("%d/%m/%Y, %H:%M:%S") + " Next update: T-" + str(i)  
+
+        clock_x = (width - len(current_time)) // 2
+        clock_y = 0
+                    
+        # Draw the clock
+
+        stdscr.addstr(clock_y, clock_x, current_time, curses.A_BOLD)
+                    
+        # Add some icons on the top bar to indicate various things
+                    
+        icon_x = clock_x + len(current_time) + 2
+                    
+        if error_happen == 1:
+            stdscr.addstr(clock_y, icon_x, "E",curses.color_pair(4) | curses.A_BOLD)
+                    
+                    
+        # Draw a line
+        y_line = 1
+                    
+        stdscr.addstr(y_line, 0, "-" * width, curses.color_pair(2) | curses.A_BOLD)
         
         
+    def cli_read_config():
+        
+        
+        height, width = stdscr.getmaxyx()
+        window_info = WindowData(width, height)
+        
+        y = 0
+        list_delay = 0.3 # Change to make listing longer or faster 
+        txt_mode = "ON"
+        xl_mode = "ON"
+        img_mode = "ON"
+        reset_data_mode = "NOT RESET"
+        pulseio_mode = "ENABLED"
+        if allowtxt == 0:
+            txt_mode = "OFF"
+        if allowxl == 0:
+            xl_mode = "OFF"
+        if allowimg == 0:
+            img_mode = "OFF"
+        if reset_data == 1:
+            reset_data_mode = "RESET"
+        if allow_pulseio == 0:
+            pulseio_mode = "DISABLED"
+        
+        
+        box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window3')
+        logs.append("Using " + dht_convert(device,1))
+        logs.append("Using pin " + str(pin))
+        logs.append("Writing to an Excel file is " + xl_mode)
+        logs.append("Creating a PNG image is " + img_mode)
+        logs.append("The delay is set to " + str(delay_sec) + " seconds")
+        logs.append("Pulseio is " + pulseio_mode)
+        logs.append("The data will be " + reset_data_mode)
+        stdscr.addstr(y, 0, logs[0],curses.A_BOLD)
+        y += 1 
+        stdscr.refresh()
+        time.sleep(list_delay)
+        stdscr.addstr(y, 0, logs[1],curses.A_BOLD)
+        y += 1 
+        stdscr.refresh()
+        time.sleep(list_delay)
+        stdscr.addstr(y, 0, logs[2],curses.A_BOLD)
+        y += 1 
+        stdscr.refresh()
+        time.sleep(list_delay)        
+        stdscr.addstr(y, 0, logs[3],curses.A_BOLD)
+        y += 1 
+        stdscr.refresh()
+        time.sleep(list_delay)
+        stdscr.addstr(y, 0, logs[4],curses.A_BOLD)
+        y += 1 
+        stdscr.refresh()
+        time.sleep(list_delay)
+        stdscr.addstr(y, 0, logs[5],curses.A_BOLD)
+        y += 1 
+        stdscr.refresh()
+        time.sleep(list_delay)
+        stdscr.addstr(y, 0, logs[6],curses.A_BOLD)
+        y += 1 
+        stdscr.refresh()
+        time.sleep(list_delay)
+    
+        
+        if reset_data == 1:
+            file_names = ["T_and_H.txt", "xl_tmp"]
+            for file_name in file_names:
+                try:
+                    os.remove(file_name)
+                    logs.append(f"File '{file_name}' deleted successfully")
+                except FileNotFoundError:
+                    logs.append(f"File '{file_name}' not found")
+                    
+                except PermissionError:
+                    logs.append(f"Unable to delete file '{file_name}'. Permission denied")
+                except Exception as e:
+                    logs.append(f"An error occurred while deleting file '{file_name}': {str(e)}")
+            stdscr.addstr(y, 0, logs[7],curses.A_BOLD)
+            y += 1 
+            stdscr.addstr(y, 0, logs[8],curses.A_BOLD)
+            stdscr.refresh()
+            y += 1
+        
+        stdscr.addstr(y, 0, ascii_logo,curses.A_BOLD)
+        y += 6
+        stdscr.addstr(y, 0, "The program will launch is 3 seconds.",curses.A_BOLD)
+        stdscr.refresh()
+        time.sleep(3)
+            
         
     # Array for holding temperature and humidity
     temperature_hold = []
     humidity_hold = []
 
+    # Array for holding error messages
     errors_amount = 0
     error_msg = []
+    # For topbar indication
     error_happen = 0
-
+    
+    # Array for holding text for logs box
+    logs_amount = 0
+    logs = []
+    
+    # Should happen only once on startup (or if setting were changed)
+    check_config = 1
+    
+    if check_config == 1:
+        cli_read_config()
+        check_config = 0
+    
+    
     # Initial the dht device, with data pin connected to:
     pin_value = getattr(board, "D" + str(pin))
     dhtDevice = device(pin_value, bool(allow_pulseio))
+    
 
     while True:
         try:
@@ -458,6 +690,9 @@ def main(stdscr):
                     
                     error_msg.append(error.args[0])
                     error_happen = 1
+                    now = datetime.now()
+                    
+                    logs.append("Error hapenned at " + now.strftime("%d/%m/%Y, %H:%M:%S"))
                     break
                     # Errors happen fairly often, DHT's are hard to read, just keep going
 
@@ -478,28 +713,11 @@ def main(stdscr):
                     
                     height, width = stdscr.getmaxyx()
                     
-                    now = datetime.now()  
-                    current_time = "Current time: " + now.strftime("%d/%m/%Y, %H:%M:%S") + " Next update: T-" + str(i)  
-
-                    clock_x = (width - len(current_time)) // 2
-                    clock_y = 0
+                    window_info = WindowData(width, height)
                     
-                    # Draw the clock
-
-                    stdscr.addstr(clock_y, clock_x, current_time, curses.A_BOLD)
-                    
-                    # Add some icons on the top bar to indicate various things
-                    
-                    icon_x = clock_x + len(current_time) + 2
-                    
-                    if error_happen == 1:
-                        stdscr.addstr(clock_y, icon_x, "E",curses.color_pair(4) | curses.A_BOLD)
-                    
-                    
-                    # Draw a line
-                    y_line = 1
-                    
-                    stdscr.addstr(y_line, 0, "-" * width, curses.color_pair(2) | curses.A_BOLD)
+                    cli_draw_interface()
+                   
+                    cli_top_bar()
                     
                     # Draw info
                     
@@ -517,12 +735,7 @@ def main(stdscr):
                     
                     # Draw box and title
                     box_name = "Information"
-                    
-                    # Turn on color pair to color the box
-                    stdscr.attron(curses.color_pair(2))
-                    draw_box()
-                    # Turn off color pair
-                    stdscr.attroff(curses.color_pair(2))     
+                      
                     
                                     
                     # Calculate the x-coordinate to center the text
@@ -571,7 +784,7 @@ def main(stdscr):
                     
                     # Turn on color pair to color the box
                     stdscr.attron(curses.color_pair(2))
-                    draw_box()
+                    #draw_box()
                     # Turn off color pair
                     stdscr.attroff(curses.color_pair(2))       
           
@@ -613,25 +826,11 @@ def main(stdscr):
                         stdscr.addch(y, box_x + x, "X", curses.A_BOLD)
                     
                     
-                    # set up w.i.p. error messages
-                    # Coordinates for initial box placement
-                    box_x = width*55//100
-                    box_y = box_y + height // 2
-                    
-                    # Box sizes
-                    box_width = (width - width // 4) // 2
-                    box_height = height // 4
-                    
-                    # Set up the graph
-                    graph_x = box_x + 1
-                    graph_x_axis = box_height // 2 + box_y
+                    # set up error messages
 
-                    # Draw box
-                    
-                    # Turn on color pair to color the box
-                    stdscr.attron(curses.color_pair(2))
-                    draw_box()
-                    # Turn off color pair
+                    box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window4')
+
+
                     stdscr.attroff(curses.color_pair(2))
                     if not error_msg == None:
                         
@@ -640,7 +839,9 @@ def main(stdscr):
                             reset_array(error_msg, box_height-1)
                             
                         # Turn on color pair
-                        stdscr.attron(curses.color_pair(4))      
+                        stdscr.attron(curses.color_pair(4))
+                        
+                        msg_2 = None      
                         for msg in error_msg:
                             errors_amount += 1
                             # Check if the error message is bigger than the width of the box and add \n to conpensate
@@ -660,27 +861,38 @@ def main(stdscr):
                                             
                                         
                     
-                    # set up w.i.p.
-                    # Coordinates for initial box placement
-                    box_x = 0
-                    box_y = box_y
+                    # set up logs.
                     
-                    # Box sizes
-                    box_width = int(width - width // 2.24)
-                    box_height = height // 4
+                    box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window3')
                     
-                    # Set up the graph
-                    graph_x = box_x + 1
-                    graph_x_axis = box_height // 2 + box_y
-
-                    # Draw box and title
-                    graph_name = "Temperature"
+                    if not logs == None:
+                        
+                        # Check if the size of array is bigger than the box
+                        if len(logs) >= box_height-1:
+                            save_and_reset_array(logs,box_height-1)
+                            
+                        # Turn on color pair
+                        stdscr.attron(curses.color_pair(1))
+                        
+                        msg_2 = None      
+                        for msg in logs:
+                            logs_amount += 1
+                            # Check if the error message is bigger than the width of the box and add \n to conpensate
+                            if len(msg) > box_width-2:
+                                msg_2 = msg[box_width-2:]
+                                msg = msg[:box_width-2] 
+                            stdscr.addstr(box_y+logs_amount , box_x+1, msg)
+                            if not msg_2 == None:
+                                pass
+                                logs_amount += 1 
+                                if logs_amount >= box_height-1:
+                                    # Perhaps not the best way to solve the issue of checking if the text will fit on display, but it works
+                                    logs = logs + logs
+                                    break
+                                stdscr.addstr(box_y+logs_amount , box_x+1, msg_2) 
+                        stdscr.attroff(curses.color_pair(1)) 
+                                            
                     
-                    # Turn on color pair to color the box
-                    stdscr.attron(curses.color_pair(2))
-                    draw_box()
-                    # Turn off color pair
-                    stdscr.attroff(curses.color_pair(2))  
                     
                     # Get user input
                     key = stdscr.getch()
@@ -690,17 +902,22 @@ def main(stdscr):
                         return 0
                     i -= 1
                     errors_amount = 0
-                    error_happen = 0
+                    
+                    logs_amount = 0
+                    
                     # Refresh the screen
                     stdscr.refresh()
             
+            error_happen = 0
+            
+            
             if allowtxt == 1:
                 write_to_txt(temperature,humidity)
-            if allowxl == 1 or allowpng == 1:
+            if allowxl == 1 or allowimg == 1:
                 flat = 0
-            if allowxl == 1 and allowpng == 1:
+            if allowxl == 1 and allowimg == 1:
                 flag = 3
-            elif allowxl == 1 and allowpng == 0:
+            elif allowxl == 1 and allowimg == 0:
                 flag = 1
             else:
                 flag = 2
