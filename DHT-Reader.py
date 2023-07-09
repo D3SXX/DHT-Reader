@@ -143,7 +143,7 @@ def dht_convert(device, flag=None):
         print("Something went wrong, check your config file!")
         raise Exception("Unknown device " + str(device)) 
 
-def check_config():
+def scan_config():
     config_file = 'dhtreader.ini'
     device = "DHT11"
     pin = board.D4
@@ -190,7 +190,7 @@ def check_config():
                     break
                 else:
                     break
-                            
+                                
             tmp = str(input("Write data in txt file? (default is no)"))
             if tmp.lower() == "y":
                 allowtxt = 1
@@ -253,13 +253,14 @@ def check_config():
             delay_sec = config.getint('dhtreader', 'DelayTime')
             allow_pulseio = config.getint('dhtreader','UsePulseio')
             reset_data = config.getint('dhtreader','resetdata')
-            
+                
             # Convert "device" from str to appropriate type
             device = dht_convert(device)
-                
+                    
         except configparser.Error as e:
             print(f"Error reading the config file: {e}")
     return allowtxt, allowxl, allowpng, delay_sec, allow_pulseio, reset_data, device, pin
+
 
 def read_config(txt,xl,img,delay,pulseio,reset_data,device,pin):
     list_delay = 0.3 # Change to make listing longer or faster 
@@ -444,10 +445,10 @@ reset_data = 0
 device = dht_convert("DHT11")
 pin = board.D4
 
-if not args.skip:
-        allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, data_reset, device, pin = check_config()
-        read_config(allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, data_reset, device, pin)
 
+if not args.skip:
+    allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, data_reset, device, pin = scan_config()
+ 
 
 def main(stdscr):
 
@@ -473,10 +474,17 @@ def main(stdscr):
     curses.init_pair(2, curses.COLOR_MAGENTA, curses.COLOR_BLACK) # Purple and black
     curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK) # Green and black
     curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK) # Red and black
+    curses.init_pair(5, curses.COLOR_BLUE, curses.COLOR_BLACK) # Blue and black
     stdscr.bkgd(' ', curses.color_pair(1) | curses.A_BOLD)
     
     
-    
+    def cli_delay(time_sec, x, y):
+        while time_sec >= 1:
+            delay_text = f"The next reset will be in {time_sec} seconds"
+            stdscr.addstr(y, x, delay_text)
+            stdscr.refresh()
+            time.sleep(1)
+            time_sec -= 1 
     
     def draw_box(box_y, box_x, box_width, box_height):
         
@@ -533,7 +541,7 @@ def main(stdscr):
         # Draw box
         
         draw_box(box_y, box_x, box_width, box_height)
-    
+   
     def cli_top_bar():
         # Draw top bar
                     
@@ -553,16 +561,15 @@ def main(stdscr):
                     
         if error_happen == 1:
             stdscr.addstr(clock_y, icon_x, "E",curses.color_pair(4) | curses.A_BOLD)
-                    
+        if i <= 1:
+            stdscr.addstr(clock_y, icon_x+2, "R",curses.color_pair(5) | curses.A_BOLD)
                     
         # Draw a line
         y_line = 1
                     
         stdscr.addstr(y_line, 0, "-" * width, curses.color_pair(2) | curses.A_BOLD)
-        
-        
+                
     def cli_read_config():
-        
         
         height, width = stdscr.getmaxyx()
         window_info = WindowData(width, height)
@@ -621,9 +628,7 @@ def main(stdscr):
         stdscr.addstr(y, 0, logs[6],curses.A_BOLD)
         y += 1 
         stdscr.refresh()
-        time.sleep(list_delay)
     
-        
         if reset_data == 1:
             file_names = ["T_and_H.txt", "xl_tmp"]
             for file_name in file_names:
@@ -645,9 +650,8 @@ def main(stdscr):
         
         stdscr.addstr(y, 0, ascii_logo,curses.A_BOLD)
         y += 6
-        stdscr.addstr(y, 0, "The program will launch is 3 seconds.",curses.A_BOLD)
         stdscr.refresh()
-        time.sleep(3)
+        cli_delay(3, 0, y+2)
             
         
     # Array for holding temperature and humidity
@@ -664,12 +668,9 @@ def main(stdscr):
     logs_amount = 0
     logs = []
     
-    # Should happen only once on startup (or if setting were changed)
-    check_config = 1
     
-    if check_config == 1:
-        cli_read_config()
-        check_config = 0
+    if not args.skip:
+       cli_read_config()
     
     
     # Initial the dht device, with data pin connected to:
