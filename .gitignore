@@ -40,3 +40,5 @@ build/
 
 # Temporary files
 xl_tml
+
+.gitconfig
