@@ -873,7 +873,6 @@ def main(stdscr):
                                 msg = msg[:box_width-2] 
                             stdscr.addstr(box_y+errors_amount , box_x+1, msg)
                             if not msg_2 == None:
-                                pass
                                 errors_amount += 1 
                                 if errors_amount >= box_height-1:
                                     # Perhaps not the best way to solve the issue of checking if the text will fit on display, but it works
