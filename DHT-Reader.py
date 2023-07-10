@@ -1,4 +1,4 @@
-#DHT Reader v0.2 beta by D3SXX
+#DHT Reader v0.2 beta RC by D3SXX
 
 #Consider use --skip argument, only default config is tested right now 
 
@@ -21,6 +21,7 @@ except:
 
 parser = argparse.ArgumentParser(description='A DHT-Reader CLI Interface')
 parser.add_argument('--skip', action='store_true', help='Skip config check')
+parser.add_argument('--debug', action='store_true', help='Show debug info')
 
 
 class WindowData:
@@ -327,6 +328,8 @@ __  _  _ _____   ___ ___  __  __  ___ ___
 # Create an Excel file and an Image.
 def write_to_xl(temperature, humidity, flag):
     # flag == 1 -> allow only xl, flag == 2 allow only image, flag == 3 allow both
+    return_list = []
+    
     now = datetime.now()
     date_time = now.strftime("%d/%m/%Y, %H:%M:%S")
     df = [date_time, temperature, humidity]
@@ -378,14 +381,13 @@ def write_to_xl(temperature, humidity, flag):
         plt.savefig(img_name, dpi=300, bbox_inches='tight')
         full_time = time.time() - start_time
         img_size = os.path.getsize(img_name)
-        #print(f"\nAn image {img_name} ({img_size} bytes) was created in {full_time:.2f} seconds")
+        return_list.append(f"An image {img_name} ({img_size} bytes) was created in {full_time:.2f} seconds")
         if flag == 2:
-            return 0
+            return return_list
 
+        
     # Create an Excel workbook and worksheet
-    #print("\nThere are %d entries in the Excel\nThe amount of items: %d" % (a, a * 3))
-    #print("The data that was added to the Excel:")
-    #print(df)
+    return_list.append(f"An Excel file with {a} entries was created")
     workbook = xlsxwriter.Workbook('T_and_H.xlsx', {'strings_to_numbers': True})
     worksheet = workbook.add_worksheet()
     datetime_format = workbook.add_format({'num_format': 'dd/mm/yyyy, hh:mm:ss'})
@@ -418,6 +420,7 @@ def write_to_xl(temperature, humidity, flag):
 
     # Close the workbook
     workbook.close()
+    return return_list 
     
 def write_to_txt(temperature, humidity):
     # Record data in a text file
@@ -475,6 +478,7 @@ def main(stdscr):
     curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK) # Green and black
     curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK) # Red and black
     curses.init_pair(5, curses.COLOR_BLUE, curses.COLOR_BLACK) # Blue and black
+    curses.init_pair(6, curses.COLOR_YELLOW, curses.COLOR_BLACK) # Yellow and black
     stdscr.bkgd(' ', curses.color_pair(1) | curses.A_BOLD)
     
     
@@ -563,7 +567,8 @@ def main(stdscr):
             stdscr.addstr(clock_y, icon_x, "E",curses.color_pair(4) | curses.A_BOLD)
         if i <= 1:
             stdscr.addstr(clock_y, icon_x+2, "R",curses.color_pair(5) | curses.A_BOLD)
-                    
+        if args.debug:
+            stdscr.addstr(clock_y, icon_x+4, "D",curses.color_pair(6) | curses.A_BOLD)
         # Draw a line
         y_line = 1
                     
@@ -652,7 +657,10 @@ def main(stdscr):
         y += 6
         stdscr.refresh()
         cli_delay(3, 0, y+2)
-            
+    
+    def cli_debug(debug_msg = ""):
+        debug_str=f"Width: {width} Height: {height} " + str(debug_msg)
+        stdscr.addstr(height-1, 0, debug_str, curses.A_BOLD)
         
     # Array for holding temperature and humidity
     temperature_hold = []
@@ -668,6 +676,14 @@ def main(stdscr):
     logs_amount = 0
     logs = []
     
+    # For graph
+    
+    tmp_y = 0
+    
+    # For info window
+    
+    xl_info_amount = 0
+    info_xl = []
     
     if not args.skip:
        cli_read_config()
@@ -697,14 +713,12 @@ def main(stdscr):
                     break
                     # Errors happen fairly often, DHT's are hard to read, just keep going
 
-            if not temperature == None: # prob. broken, w.i.p.
+            if not temperature == None: 
                 temperature_hold.append(temperature)
                 humidity_hold.append(humidity)
             end_time = time.time()
             time_took = end_time - start_time
-        
-        #print("Temperature: {:.1f} | Humidity: {:.1f}".format(temperature,humidity))
-        #print(f"The delay for sensor is {time_took:.3f} seconds. ")
+
         
             #display_interface(delay_sec,temperature_hold,humidity_hold)
             i = delay_sec
@@ -758,8 +772,24 @@ def main(stdscr):
                     stdscr.addstr(lower_y, lower_x, "Humidity: " + str(humidity) + "%" )
                     lower_y += 1
                     stdscr.addstr(lower_y, lower_x, "Sensor delay: " + f"{time_took:.3f} Seconds")
-                    lower_y += 1
-                    stdscr.addstr(lower_y, lower_x, "Press 'q' to exit")
+                    
+                    # Add additional information about Excel and image
+                    msg_2 = None      
+                    for msg in info_xl:
+                        xl_info_amount += 1
+                        # Check if the error message is bigger than the width of the box and add \n to conpensate
+                        if len(msg) > box_width-3:
+                            msg_2 = msg[box_width-3:]
+                            msg = msg[:box_width-3] 
+                        stdscr.addstr(lower_y+xl_info_amount , lower_x, msg)
+                        if not msg_2 == None:
+                            xl_info_amount += 1 
+                            stdscr.addstr(lower_y+xl_info_amount , lower_x, msg_2) 
+                    
+                    
+                    
+                    #stdscr.addstr(lower_y, lower_x, info_xl)
+                    stdscr.addstr(box_y+box_height-1, lower_x, "Press 'q' to exit")
                     
                     # Turn on color pair
                     stdscr.attron(curses.color_pair(3))
@@ -768,14 +798,9 @@ def main(stdscr):
                     # Draw graph
 
                     # Set up the graph box
-                    # Coordinates for initial box placement
-                    box_x = width*55//100
-                    box_y = 4
-                    
-                    # Box sizes
-                    box_width = (width - width // 4) // 2
-                    box_height = height // 2
-                    
+
+                    box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window2')
+
                     # Set up the graph
                     graph_x = box_x + 1
                     graph_x_axis = box_height // 2 + box_y
@@ -783,18 +808,11 @@ def main(stdscr):
                     # Draw box and title
                     graph_name = "Temperature"
                     
-                    # Turn on color pair to color the box
-                    stdscr.attron(curses.color_pair(2))
-                    #draw_box()
-                    # Turn off color pair
-                    stdscr.attroff(curses.color_pair(2))       
-          
                     
                     # Calculate the x-coordinate to center the text
                     text_x = box_x + box_width // 2 - len(graph_name) // 2 
                     
                     stdscr.addstr(box_y-1, text_x, graph_name, curses.A_BOLD)
-                    #(width - len(current_time)) // 2
                     
                     # Calculate the scaling factors
                     max_value = 50
@@ -809,23 +827,27 @@ def main(stdscr):
                         stdscr.addstr(y + box_y + 1 , box_x + box_width + 1, str(value),curses.A_BOLD)
                         
                     
-                    # Draw the graph points (W.I.P.)
-                    medium = max_value // 2
+                    # Draw the graph points ()
                     
+                    
+                    debug_str = ""
                     # Check if list is too big
                     
                     if len(temperature_hold) >= box_width-2:
                         reset_array(temperature_hold, box_width-2)
                     
+                    # Draw graph line
                     for k, value in enumerate(temperature_hold):
                         x = 1 + k
-                        if value > medium:
-                            y = graph_x_axis + (value-medium)
-                        else:
-                            y = graph_x_axis - (value-medium)
-                        #y = graph_x_axis 
-                        stdscr.addch(y, box_x + x, "X", curses.A_BOLD)
-                    
+                        for d, value_y in enumerate(scaled_values[::-1]):
+
+                            if value >= value_y:
+                                y = d
+                        
+                        box_y_start = box_y + box_height
+                        
+                        stdscr.addch(box_y_start-1-y, box_x + x, "•", curses.A_BOLD)
+
                     
                     # set up error messages
 
@@ -892,8 +914,8 @@ def main(stdscr):
                                     break
                                 stdscr.addstr(box_y+logs_amount , box_x+1, msg_2) 
                         stdscr.attroff(curses.color_pair(1)) 
-                                            
-                    
+                    if args.debug:                        
+                        cli_debug()
                     
                     # Get user input
                     key = stdscr.getch()
@@ -903,7 +925,7 @@ def main(stdscr):
                         return 0
                     i -= 1
                     errors_amount = 0
-                    
+                    xl_info_amount = 0
                     logs_amount = 0
                     
                     # Refresh the screen
@@ -911,20 +933,20 @@ def main(stdscr):
             
             error_happen = 0
             
+            if not temperature == None:
+                if allowtxt == 1:
+                    write_to_txt(temperature,humidity)
+                if allowxl == 1 or allowimg == 1:
+                # flag == 1 -> allow only xl, flag == 2 allow only image, flag == 3 allow both
+                    flag = 0
+                    if allowxl == 1 and allowimg == 1:
+                        flag = 3
+                    elif allowxl == 1 and allowimg == 0:
+                        flag = 1
+                    else:
+                        flag = 2
+                    info_xl = write_to_xl(temperature,humidity,flag)
             
-            if allowtxt == 1:
-                write_to_txt(temperature,humidity)
-            if allowxl == 1 or allowimg == 1:
-                flat = 0
-            if allowxl == 1 and allowimg == 1:
-                flag = 3
-            elif allowxl == 1 and allowimg == 0:
-                flag = 1
-            else:
-                flag = 2
-            write_to_xl(temperature,humidity,flag)
-            
-        #delay_wait(delay_sec)
         except Exception as error:
                 dhtDevice.exit()
                 raise error
