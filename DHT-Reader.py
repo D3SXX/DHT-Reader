@@ -1,5 +1,4 @@
-#DHT Reader v0.2 by D3SXX
-
+#DHT Reader v0.21 beta RC by D3SXX
 
 try:
     import os # consider removing
@@ -28,32 +27,38 @@ class WindowData:
         
         top_window_y = 4
         bottom_window_y = top_window_y + height // 2
-        box_width_bottom = int((width - width // 4) // 1.8)
+        box_width_right = width*55//100+1
+        box_width_left = width-box_width_right-3 # Leave some space for graph numbers
+        box_height_top = int(height*0.5)
+        if args.debug:
+            box_height_bottom = int(height-box_height_top-top_window_y-3) # Add additional space for debug info
+        else:
+            box_height_bottom = int(height-box_height_top-top_window_y-2)
         
         self.window_data = {
             'window1': {
                 'box_x': 0,
                 'box_y': top_window_y,
-                'box_width': width*55//100+1,  # Should always connect to the graph box (sometimes it won't)
-                'box_height': height // 2
+                'box_width': box_width_right,  # Should always connect to the graph box
+                'box_height': box_height_top
             },
             'window2': {
                 'box_x': width*55//100,
                 'box_y': top_window_y,
-                'box_width': box_width_bottom,
-                'box_height': height // 2
+                'box_width': box_width_left,
+                'box_height': box_height_top
             },
             'window4': {
                 'box_x': width*55//100,
                 'box_y': bottom_window_y,
-                'box_width': box_width_bottom,
-                'box_height': height // 4
+                'box_width': box_width_left,
+                'box_height': box_height_bottom 
             },
             'window3': {
                 'box_x': 0,
                 'box_y': bottom_window_y,
-                'box_width': width*55//100+1,
-                'box_height': height // 4
+                'box_width': box_width_right,
+                'box_height': box_height_bottom 
             }
         }
 
@@ -573,6 +578,45 @@ def main(stdscr):
     def cli_debug(debug_msg = ""):
         debug_str=f"Width: {width} Height: {height} " + str(debug_msg)
         stdscr.addstr(height-1, 0, debug_str, curses.A_BOLD)
+
+    def cli_bottom_bar(debug_msg):
+        bottom_x = 0
+        bottom_y = height - 1
+        if args.debug:
+            cli_debug(debug_msg)
+            bottom_y -= 1
+        bottom_msg = "Press Q to (Q)uit | S to open (S)ettings | C to (C)hange graph"
+        stdscr.addstr(bottom_y, bottom_x,bottom_msg, curses.A_BOLD)
+    
+    def cli_settings_menu():
+        pos_y = 1
+        pos_x = 1
+        while True:
+            stdscr.clear()
+            height, width = stdscr.getmaxyx()
+            draw_box(0, 0, width-1, height-1)
+            #stdscr.addstr(pos_y, pos_x, "X", curses.A_BOLD)
+            # Get user input
+            key = stdscr.getch()
+
+            # Exit the loop
+            if key == ord('q') or key == ord('Q'):
+                break
+            elif key == curses.KEY_UP:
+                pos_y -= 1
+            elif key == curses.KEY_DOWN:
+                pos_y += 1
+            elif key == curses.KEY_LEFT:
+                pos_x -= 1
+            elif key == curses.KEY_RIGHT:
+                pos_x += 1
+                
+            if args.debug:
+                debug_msg_1 = f"width: {width} height: {height} pos_x: {pos_x} pos_y {pos_y} "
+                stdscr.addstr(height-2, 1, debug_msg_1, curses.A_BOLD)
+            # Refresh the screen
+            stdscr.refresh()
+        
         
     # Array for holding temperature and humidity
     temperature_hold = []
@@ -689,7 +733,6 @@ def main(stdscr):
                             xl_info_amount += 1 
                             stdscr.addstr(lower_y+xl_info_amount , lower_x, msg_2) 
                                
-                    stdscr.addstr(box_y+box_height-1, lower_x, "Press 'q' to exit")
                     
                     # Turn on color pair
                     stdscr.attron(curses.color_pair(3))
@@ -780,7 +823,6 @@ def main(stdscr):
                                 msg = msg[:box_width-2] 
                             stdscr.addstr(box_y+errors_amount , box_x+1, msg)
                             if not msg_2 == None:
-                                pass
                                 errors_amount += 1 
                                 if errors_amount >= box_height-1:
                                     # Perhaps not the best way to solve the issue of checking if the text will fit on display, but it works
@@ -813,16 +855,19 @@ def main(stdscr):
                                 msg = msg[:box_width-2] 
                             stdscr.addstr(box_y+logs_amount , box_x+1, msg)
                             if not msg_2 == None:
-                                pass
                                 logs_amount += 1 
                                 if logs_amount >= box_height-1:
                                     # Perhaps not the best way to solve the issue of checking if the text will fit on display, but it works
                                     logs = logs + logs
                                     break
                                 stdscr.addstr(box_y+logs_amount , box_x+1, msg_2) 
-                        stdscr.attroff(curses.color_pair(1)) 
-                    if args.debug:                        
-                        cli_debug(debug_msg)
+                        stdscr.attroff(curses.color_pair(1))
+                        
+                    cli_bottom_bar(debug_msg)                            
+                        
+                    
+                    
+                    
                     
                     # Get user input
                     key = stdscr.getch()
@@ -830,6 +875,11 @@ def main(stdscr):
                     # Exit the loop
                     if key == ord('q') or key == ord('Q'):
                         return 0
+                    elif key == ord('s') or key == ord('S'): # w.i.p.
+                        cli_settings_menu()
+                    elif key == ord('c') or key == ord('C'):
+                        pass
+                
                     i -= 1
                     errors_amount = 0
                     xl_info_amount = 0
