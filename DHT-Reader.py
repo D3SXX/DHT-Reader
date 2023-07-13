@@ -1,4 +1,4 @@
-#DHT Reader v0.21 beta RC by D3SXX
+#DHT Reader v0.22 by D3SXX
 
 try:
     import os # consider removing
@@ -399,6 +399,7 @@ def main(stdscr):
     curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK) # Red and black
     curses.init_pair(5, curses.COLOR_BLUE, curses.COLOR_BLACK) # Blue and black
     curses.init_pair(6, curses.COLOR_YELLOW, curses.COLOR_BLACK) # Yellow and black
+    curses.init_pair(7, curses.COLOR_BLACK, curses.COLOR_WHITE) # Black and White
     stdscr.bkgd(' ', curses.color_pair(1) | curses.A_BOLD)
     
     
@@ -588,14 +589,64 @@ def main(stdscr):
         bottom_msg = "Press Q to (Q)uit | S to open (S)ettings | C to (C)hange graph"
         stdscr.addstr(bottom_y, bottom_x,bottom_msg, curses.A_BOLD)
     
+    def cli_themes(select = 0):
+        
+        if select == 0: # Default theme
+            curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK) # for top clock, logs
+            curses.init_pair(2, curses.COLOR_MAGENTA, curses.COLOR_BLACK) # For box borders
+            curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK) # For text, graph
+            curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK) # For error logs, top pannel indication (red)
+            curses.init_pair(5, curses.COLOR_BLUE, curses.COLOR_BLACK) # For top pannel indication (Reset)
+            curses.init_pair(6, curses.COLOR_YELLOW, curses.COLOR_BLACK) # For top pannel indication (Debug)
+            curses.init_pair(7, curses.COLOR_BLACK, curses.COLOR_WHITE) # For text highlight
+        elif select == 1: # Monochrome
+            curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK) # for top clock, logs
+            curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK) # For box borders
+            curses.init_pair(3, curses.COLOR_WHITE, curses.COLOR_BLACK) # For text, graph
+            curses.init_pair(4, curses.COLOR_WHITE, curses.COLOR_BLACK) # For error logs, top pannel indication (red)
+            curses.init_pair(5, curses.COLOR_WHITE, curses.COLOR_BLACK) # For top pannel indication (Reset)
+            curses.init_pair(6, curses.COLOR_WHITE, curses.COLOR_BLACK) # For top pannel indication (Debug)
+            curses.init_pair(7, curses.COLOR_BLACK, curses.COLOR_WHITE) # For text highlight
+        elif select == 2: # Classic blue
+            curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLUE) # for top clock, logs
+            curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLUE) # For box borders
+            curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLUE) # For text, graph
+            curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLUE) # For error logs, top pannel indication (red)
+            curses.init_pair(5, curses.COLOR_BLUE, curses.COLOR_BLUE) # For top pannel indication (Reset)
+            curses.init_pair(6, curses.COLOR_YELLOW, curses.COLOR_BLUE) # For top pannel indication (Debug)
+            curses.init_pair(7, curses.COLOR_BLACK, curses.COLOR_BLUE) # For text highlight
+        elif select == 3: # Inverted monochrome
+            curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_WHITE) # for top clock, logs
+            curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_WHITE) # For box borders
+            curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_WHITE) # For text, graph
+            curses.init_pair(4, curses.COLOR_BLACK, curses.COLOR_WHITE) # For error logs, top pannel indication (red)
+            curses.init_pair(5, curses.COLOR_BLACK, curses.COLOR_WHITE) # For top pannel indication (Reset)
+            curses.init_pair(6, curses.COLOR_BLACK, curses.COLOR_WHITE) # For top pannel indication (Debug)
+            curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_BLACK) # For text highlight
+    
     def cli_settings_menu():
-        pos_y = 1
+        pos_y = 2
         pos_x = 1
+        select = 0
+        settings = ["Change theme","Change configuration","Change temperature unit","Exit"]
         while True:
             stdscr.clear()
             height, width = stdscr.getmaxyx()
             draw_box(0, 0, width-1, height-1)
-            #stdscr.addstr(pos_y, pos_x, "X", curses.A_BOLD)
+            if args.debug:
+                debug_msg_1 = f"width: {width} height: {height} pos_x: {pos_x} pos_y {pos_y} "
+                stdscr.addstr(height-2, 1, debug_msg_1, curses.A_BOLD)
+            stdscr.addstr(1, 1, "Settings", curses.A_BOLD)
+            for i, setting in enumerate(settings):
+                if i == pos_y-2:
+                    stdscr.addstr(2+i, 1, setting, curses.color_pair(7))
+                    select = i
+                else:
+                    stdscr.addstr(2+i, 1, setting, curses.A_BOLD)
+            
+            stdscr.addstr(pos_y, pos_x+30, "<--", curses.A_BOLD)
+            
+            
             # Get user input
             key = stdscr.getch()
 
@@ -603,17 +654,44 @@ def main(stdscr):
             if key == ord('q') or key == ord('Q'):
                 break
             elif key == curses.KEY_UP:
-                pos_y -= 1
+                if pos_y > 2:
+                    pos_y -= 1
             elif key == curses.KEY_DOWN:
-                pos_y += 1
+                if not pos_y > len(settings):
+                    pos_y += 1
             elif key == curses.KEY_LEFT:
                 pos_x -= 1
             elif key == curses.KEY_RIGHT:
                 pos_x += 1
-                
-            if args.debug:
-                debug_msg_1 = f"width: {width} height: {height} pos_x: {pos_x} pos_y {pos_y} "
-                stdscr.addstr(height-2, 1, debug_msg_1, curses.A_BOLD)
+            elif key == ord('\n'):
+                if select == 0:
+                    themes = ["   Default >>","<< Monochrome >>","<< Classic Blue >>","<< Inverted monochrome   "]
+                    select = 0
+                    while True:
+                        stdscr.clear()
+                        height, width = stdscr.getmaxyx()
+                        
+                        cli_themes(select)
+                        
+                        box_width = int(width * 0.4)
+                        box_height = int(height * 0.4)
+                        draw_box(height//2-(box_height // 2), width//2-(box_width // 2), box_width, box_height)
+                        
+                        stdscr.addstr(height//2, width//2-len(themes[select]) // 2, themes[select], curses.A_BOLD)
+                        
+                        # Get user input
+                        key = stdscr.getch()
+                        if key == ord('q') or key == ord('Q'):
+                            break
+                        elif key == curses.KEY_LEFT:
+                            if select > 0:
+                                select -= 1
+                        elif key == curses.KEY_RIGHT:
+                            if select < len(themes)-1:
+                                select += 1
+                        stdscr.refresh()
+                pos_x = 1
+
             # Refresh the screen
             stdscr.refresh()
         
