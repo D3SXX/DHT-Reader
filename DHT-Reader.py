@@ -1,4 +1,4 @@
-#DHT Reader v0.22 by D3SXX
+#DHT Reader v0.23 by D3SXX
 
 try:
     import os # consider removing
@@ -353,7 +353,7 @@ def write_to_txt(temperature, humidity):
         # Write this structure to a file
         f.write(entry)
 
-    print(f"\nThe data that was added to the T_and_H.txt:\n{date_time} Temperature: {temperature} Humidity: {humidity}")
+    return str(f"\nThe data that was added to the T_and_H.txt:\n{date_time} Temperature: {temperature} Humidity: {humidity}")
 
 
 # Temporary solution for holding default values here
@@ -402,6 +402,7 @@ def main(stdscr):
     curses.init_pair(7, curses.COLOR_BLACK, curses.COLOR_WHITE) # Black and White
     stdscr.bkgd(' ', curses.color_pair(1) | curses.A_BOLD)
     
+    select_theme = 0
     
     def cli_delay(time_sec, x, y):
         while time_sec >= 1:
@@ -589,6 +590,52 @@ def main(stdscr):
         bottom_msg = "Press Q to (Q)uit | S to open (S)ettings | C to (C)hange graph"
         stdscr.addstr(bottom_y, bottom_x,bottom_msg, curses.A_BOLD)
     
+    def cli_info_box(xl_info_amount):
+        
+        # Set up the info box
+        box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window1')
+                    
+        
+        # Draw info
+                    
+        lower_y = box_y + 1
+        lower_x = box_x + 1
+                    
+        # Draw box and title
+        box_name = "Information"
+                                                       
+        # Calculate the x-coordinate to center the text
+                                    
+        text_x = box_x + box_width // 2 - len(box_name) // 2 
+        stdscr.addstr(box_y-1, text_x, box_name, curses.A_BOLD)
+                    
+        # Turn on color pair to color the text in the info box
+        stdscr.attron(curses.color_pair(3))
+                    
+        stdscr.addstr(lower_y, lower_x, "Model: " + dht_convert(device))
+        lower_y += 1
+        stdscr.addstr(lower_y, lower_x, "Pin: " + str(pin))
+        lower_y += 1
+        stdscr.addstr(lower_y, lower_x, "Temperature: " + str(temperature) + " C") # w.i.p. make it for Far. as well
+        lower_y += 1
+        stdscr.addstr(lower_y, lower_x, "Humidity: " + str(humidity) + "%" )
+        lower_y += 1
+        stdscr.addstr(lower_y, lower_x, "Sensor delay: " + f"{time_took:.3f} Seconds")
+                    
+        # Add additional information about Excel and image
+        msg_2 = None      
+        for msg in info_xl:
+            xl_info_amount += 1
+            # Check if the info message is bigger than the width of the box and add \n to conpensate
+            if len(msg) > box_width-3:
+                msg_2 = msg[box_width-3:]
+                msg = msg[:box_width-3] 
+            stdscr.addstr(lower_y+xl_info_amount , lower_x, msg)
+            if not msg_2 == None:
+                xl_info_amount += 1 
+                stdscr.addstr(lower_y+xl_info_amount , lower_x, msg_2) 
+    
+    
     def cli_themes(select = 0):
         
         if select == 0: # Default theme
@@ -622,9 +669,9 @@ def main(stdscr):
             curses.init_pair(4, curses.COLOR_BLACK, curses.COLOR_WHITE) # For error logs, top pannel indication (red)
             curses.init_pair(5, curses.COLOR_BLACK, curses.COLOR_WHITE) # For top pannel indication (Reset)
             curses.init_pair(6, curses.COLOR_BLACK, curses.COLOR_WHITE) # For top pannel indication (Debug)
-            curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_BLACK) # For text highlight
+            curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_WHITE) # For text highlight
     
-    def cli_settings_menu():
+    def cli_settings_menu(select_theme):
         pos_y = 2
         pos_x = 1
         select = 0
@@ -659,43 +706,92 @@ def main(stdscr):
             elif key == curses.KEY_DOWN:
                 if not pos_y > len(settings):
                     pos_y += 1
-            elif key == curses.KEY_LEFT:
-                pos_x -= 1
-            elif key == curses.KEY_RIGHT:
-                pos_x += 1
             elif key == ord('\n'):
                 if select == 0:
+                    
                     themes = ["   Default >>","<< Monochrome >>","<< Classic Blue >>","<< Inverted monochrome   "]
-                    select = 0
+                    options = ["Select","Exit"]
+                    line = 0
+                    old_theme = select_theme
                     while True:
                         stdscr.clear()
                         height, width = stdscr.getmaxyx()
                         
-                        cli_themes(select)
+                        cli_themes(select_theme)
+                        
+                        if args.debug:
+                            debug_msg_1 = f"width: {width} height: {height} theme: {select_theme}. {(themes[select_theme])[3:-3]} line {line} "
+                            stdscr.addstr(height-1, 1, debug_msg_1, curses.A_BOLD)
                         
                         box_width = int(width * 0.4)
                         box_height = int(height * 0.4)
                         draw_box(height//2-(box_height // 2), width//2-(box_width // 2), box_width, box_height)
+                        if line == 0:
+                            stdscr.addstr(height//2, width//2-len(themes[select_theme]) // 2, themes[select_theme], curses.color_pair(7))
+                            stdscr.addstr(height//2+int(height*0.1), width//2-int(box_width // 3), options[0], curses.A_BOLD)
+                            stdscr.addstr(height//2+int(height*0.1), width//2+int(box_width // 3)-len(options[1]), options[1], curses.A_BOLD)
+                        elif line == 1:
+                            stdscr.addstr(height//2, width//2-len(themes[select_theme]) // 2, themes[select_theme], curses.A_BOLD)
+                            stdscr.addstr(height//2+int(height*0.1), width//2-int(box_width // 3), options[0], curses.color_pair(7))
+                            stdscr.addstr(height//2+int(height*0.1), width//2+int(box_width // 3)-len(options[1]), options[1], curses.A_BOLD)
+                        elif line == 2:
+                            stdscr.addstr(height//2, width//2-len(themes[select_theme]) // 2, themes[select_theme], curses.A_BOLD)
+                            stdscr.addstr(height//2+int(height*0.1), width//2-int(box_width // 3), options[0], curses.A_BOLD)
+                            stdscr.addstr(height//2+int(height*0.1), width//2+int(box_width // 3)-len(options[1]), options[1], curses.color_pair(7))
                         
-                        stdscr.addstr(height//2, width//2-len(themes[select]) // 2, themes[select], curses.A_BOLD)
                         
                         # Get user input
                         key = stdscr.getch()
                         if key == ord('q') or key == ord('Q'):
                             break
                         elif key == curses.KEY_LEFT:
-                            if select > 0:
-                                select -= 1
+                            if select_theme > 0 and line == 0:
+                                select_theme -= 1
+                            elif line == 2 and line > 0:
+                                line -= 1
                         elif key == curses.KEY_RIGHT:
-                            if select < len(themes)-1:
-                                select += 1
+                            if select_theme < len(themes)-1 and line == 0:
+                                select_theme += 1
+                            elif line == 1 and line < 2:
+                                line += 1
+                        elif key == curses.KEY_UP:
+                            if line > 0:
+                                line -= 1
+                        elif key == curses.KEY_DOWN:
+                            if not line > len(options)-2:
+                                line += 1
+                        elif key == ord('\t'):
+                            if line == 0:
+                                line = 1
+                            else:
+                                line = 0
+                        elif key == ord('\n'):
+                            if line == 1:
+                                break
+                            elif line == 2:
+                                select_theme = old_theme
+                                cli_themes(select_theme)
+                                break
+                            elif line == 0:
+                                
+                                while True:
+                                    stdscr.clear()
+                                    height, width = stdscr.getmaxyx()
+                                    cli_draw_interface()
+                                    cli_top_bar()
+                                    
+                                    
+                                    if stdscr.getch() == ord('\n'):
+                                        break
+                                    stdscr.refresh()
                         stdscr.refresh()
+                elif select == len(settings)-1:
+                    return select_theme
                 pos_x = 1
 
             # Refresh the screen
             stdscr.refresh()
-        
-        
+          
     # Array for holding temperature and humidity
     temperature_hold = []
     humidity_hold = []
@@ -721,7 +817,6 @@ def main(stdscr):
     
     if not args.skip:
        cli_read_config()
-    
     
     # Initial the dht device, with data pin connected to:
     pin_value = getattr(board, "D" + str(pin))
@@ -757,7 +852,7 @@ def main(stdscr):
             i = delay_sec
             while i>0:
                     stdscr.clear()
-                    
+
                     
                     height, width = stdscr.getmaxyx()
                     
@@ -767,50 +862,10 @@ def main(stdscr):
                    
                     cli_top_bar()
                     
-                    
-                    # Set up the info box
+                    cli_info_box(xl_info_amount)
+
                     box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window1')
-                    
-                    debug_msg = f"W1: {box_width}x{box_height} " 
-                    # Draw info
-                    
-                    lower_y = box_y + 1
-                    lower_x = box_x + 1
-                    
-                    # Draw box and title
-                    box_name = "Information"
-                                                       
-                    # Calculate the x-coordinate to center the text
-                                    
-                    text_x = box_x + box_width // 2 - len(box_name) // 2 
-                    stdscr.addstr(box_y-1, text_x, box_name, curses.A_BOLD)
-                    
-                    # Turn on color pair to color the text in the info box
-                    stdscr.attron(curses.color_pair(3))
-                    
-                    stdscr.addstr(lower_y, lower_x, "Model: " + dht_convert(device))
-                    lower_y += 1
-                    stdscr.addstr(lower_y, lower_x, "Pin: " + str(pin))
-                    lower_y += 1
-                    stdscr.addstr(lower_y, lower_x, "Temperature: " + str(temperature) + " C") # w.i.p. make it for Far. as well
-                    lower_y += 1
-                    stdscr.addstr(lower_y, lower_x, "Humidity: " + str(humidity) + "%" )
-                    lower_y += 1
-                    stdscr.addstr(lower_y, lower_x, "Sensor delay: " + f"{time_took:.3f} Seconds")
-                    
-                    # Add additional information about Excel and image
-                    msg_2 = None      
-                    for msg in info_xl:
-                        xl_info_amount += 1
-                        # Check if the error message is bigger than the width of the box and add \n to conpensate
-                        if len(msg) > box_width-3:
-                            msg_2 = msg[box_width-3:]
-                            msg = msg[:box_width-3] 
-                        stdscr.addstr(lower_y+xl_info_amount , lower_x, msg)
-                        if not msg_2 == None:
-                            xl_info_amount += 1 
-                            stdscr.addstr(lower_y+xl_info_amount , lower_x, msg_2) 
-                               
+                    debug_msg = f"W1: {box_width}x{box_height} "            
                     
                     # Turn on color pair
                     stdscr.attron(curses.color_pair(3))
@@ -940,13 +995,9 @@ def main(stdscr):
                                     break
                                 stdscr.addstr(box_y+logs_amount , box_x+1, msg_2) 
                         stdscr.attroff(curses.color_pair(1))
-                        
+   
                     cli_bottom_bar(debug_msg)                            
                         
-                    
-                    
-                    
-                    
                     # Get user input
                     key = stdscr.getch()
 
@@ -954,7 +1005,7 @@ def main(stdscr):
                     if key == ord('q') or key == ord('Q'):
                         return 0
                     elif key == ord('s') or key == ord('S'): # w.i.p.
-                        cli_settings_menu()
+                        select_theme = cli_settings_menu(select_theme)
                     elif key == ord('c') or key == ord('C'):
                         pass
                 
@@ -967,10 +1018,12 @@ def main(stdscr):
                     stdscr.refresh()
             
             error_happen = 0
+            info_xl = []
             
             if not temperature == None:
                 if allowtxt == 1:
-                    write_to_txt(temperature,humidity)
+                    #info_xl.append(write_to_txt(temperature,humidity)) # Currently broken
+                    pass
                 if allowxl == 1 or allowimg == 1:
                 # flag == 1 -> allow only xl, flag == 2 allow only image, flag == 3 allow both
                     flag = 0
@@ -981,6 +1034,7 @@ def main(stdscr):
                     else:
                         flag = 2
                     info_xl = write_to_xl(temperature,humidity,flag)
+                    #info_xl.append(write)
             
         except Exception as error:
                 dhtDevice.exit()
