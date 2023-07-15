@@ -1,4 +1,4 @@
-#DHT Reader v0.23 by D3SXX
+#DHT Reader v0.21 by D3SXX
 
 try:
     import os # consider removing
@@ -250,6 +250,7 @@ def scan_config():
 def write_to_xl(temperature, humidity, flag):
     # flag == 1 -> allow only xl, flag == 2 allow only image, flag == 3 allow both
     return_list = []
+    xl_filename = "T_and_H.xlsx"
     
     now = datetime.now()
     date_time = now.strftime("%d/%m/%Y, %H:%M:%S")
@@ -306,8 +307,8 @@ def write_to_xl(temperature, humidity, flag):
             return return_list
 
     # Create an Excel workbook and worksheet
-    return_list.append(f"An Excel file with {a} entries was created")
-    workbook = xlsxwriter.Workbook('T_and_H.xlsx', {'strings_to_numbers': True})
+    
+    workbook = xlsxwriter.Workbook(xl_filename, {'strings_to_numbers': True})
     worksheet = workbook.add_worksheet()
     datetime_format = workbook.add_format({'num_format': 'dd/mm/yyyy, hh:mm:ss'})
     number_format = workbook.add_format({'num_format': '0'})
@@ -339,11 +340,15 @@ def write_to_xl(temperature, humidity, flag):
 
     # Close the workbook
     workbook.close()
+    xl_size = os.path.getsize(xl_filename)
+    return_list.append(f"An Excel file {xl_filename} ({xl_size} bytes) with {a} entries was created")
+    
     return return_list 
     
 def write_to_txt(temperature, humidity):
+    txt_filename = "T_and_H.txt"
     # Record data in a text file
-    with open("T_and_H.txt", "a") as f:
+    with open(txt_filename, "a") as f:
         # Check what is the time right now
         now = datetime.now()
         # Format it for better readability
@@ -352,8 +357,9 @@ def write_to_txt(temperature, humidity):
         entry = f"{date_time} Temperature: {temperature} Humidity: {humidity}\n"
         # Write this structure to a file
         f.write(entry)
-
-    return str(f"\nThe data that was added to the T_and_H.txt:\n{date_time} Temperature: {temperature} Humidity: {humidity}")
+    txt_size = os.path.getsize(txt_filename)
+    
+    return [str(f"{txt_filename} ({txt_size} bytes) file was updated ")]
 
 
 # Temporary solution for holding default values here
@@ -368,11 +374,17 @@ device = dht_convert("DHT11")
 pin = board.D4
 
 
+
 if not args.skip:
     allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, data_reset, device, pin = scan_config()
  
 
 def main(stdscr):
+    
+    
+    # Future variables that will be added to the config file
+    select_theme = 0
+    temperature_unit = "C"
     
     debug_msg = ""
     ascii_logo = '''
@@ -391,18 +403,6 @@ def main(stdscr):
     curses.start_color()
     curses.use_default_colors()
     
-    # Define color pairs
-   # curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
-    curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK) # White and black
-    curses.init_pair(2, curses.COLOR_MAGENTA, curses.COLOR_BLACK) # Purple and black
-    curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK) # Green and black
-    curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK) # Red and black
-    curses.init_pair(5, curses.COLOR_BLUE, curses.COLOR_BLACK) # Blue and black
-    curses.init_pair(6, curses.COLOR_YELLOW, curses.COLOR_BLACK) # Yellow and black
-    curses.init_pair(7, curses.COLOR_BLACK, curses.COLOR_WHITE) # Black and White
-    stdscr.bkgd(' ', curses.color_pair(1) | curses.A_BOLD)
-    
-    select_theme = 0
     
     def cli_delay(time_sec, x, y):
         while time_sec >= 1:
@@ -616,11 +616,12 @@ def main(stdscr):
         lower_y += 1
         stdscr.addstr(lower_y, lower_x, "Pin: " + str(pin))
         lower_y += 1
-        stdscr.addstr(lower_y, lower_x, "Temperature: " + str(temperature) + " C") # w.i.p. make it for Far. as well
+        stdscr.addstr(lower_y, lower_x, "Temperature: " + str(temperature) + " " + temperature_unit)
         lower_y += 1
         stdscr.addstr(lower_y, lower_x, "Humidity: " + str(humidity) + "%" )
         lower_y += 1
         stdscr.addstr(lower_y, lower_x, "Sensor delay: " + f"{time_took:.3f} Seconds")
+        
                     
         # Add additional information about Excel and image
         msg_2 = None      
@@ -635,8 +636,74 @@ def main(stdscr):
                 xl_info_amount += 1 
                 stdscr.addstr(lower_y+xl_info_amount , lower_x, msg_2) 
     
-    
+    def cli_graph_box():
+        # Turn on color pair
+        stdscr.attron(curses.color_pair(3))
+
+        # Draw graph
+
+        # Set up the graph box
+
+        box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window2') 
+                        
+        # Set up the graph
+        graph_x = box_x + 1
+        graph_x_axis = box_height // 2 + box_y
+
+        # Draw box and title
+        graph_name = "Temperature"
+                        
+                        
+        # Calculate the x-coordinate to center the text
+        text_x = box_x + box_width // 2 - len(graph_name) // 2 
+                        
+        stdscr.addstr(box_y-1, text_x, graph_name, curses.A_BOLD)
+                        
+        # Calculate the scaling factors
+        if device == dht_convert("DHT11"):
+            max_value = 50
+            min_value = 0 # different for each sensor, this one if for DHT11
+        elif device == dht_convert("DHT22"):
+            max_value = 80
+            min_value = 0 # -40 breaks graph, fix required
+        else:
+            max_value = 80
+            min_value = 0
+        if temperature_unit == "F":
+            max_value = int(1.8 * max_value + 32)
+            min_value = int(1.8 * min_value + 32)       
+        
+        scale_factor = (max_value-min_value)/(box_height-2)
+                    
+                        
+        # Generate scaled values for demonstration
+        scaled_values = [int(scale_factor * value) for value in range(box_height - 2, -1, -1)]
+                        
+        for y, value in enumerate(scaled_values):
+            stdscr.addstr(y + box_y + 1 , box_x + box_width + 1, str(value),curses.A_BOLD)
+                        
+        # Draw the graph points 
+                        
+        debug_str = ""
+        # Check if list is too big
+                        
+        if len(temperature_hold) >= box_width-2:
+            save_and_reset_array(temperature_hold)
+                        
+        # Draw graph line
+        for k, value in enumerate(temperature_hold):
+            x = 1 + k
+            for d, value_y in enumerate(scaled_values[::-1]):
+
+                if value >= value_y:
+                    y = d
+                            
+            box_y_start = box_y + box_height
+                            
+            stdscr.addch(box_y_start-1-y, box_x + x, "•", curses.A_BOLD)
+
     def cli_themes(select = 0):
+        # Define color pairs
         
         if select == 0: # Default theme
             curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK) # for top clock, logs
@@ -670,7 +737,7 @@ def main(stdscr):
             curses.init_pair(5, curses.COLOR_BLACK, curses.COLOR_WHITE) # For top pannel indication (Reset)
             curses.init_pair(6, curses.COLOR_BLACK, curses.COLOR_WHITE) # For top pannel indication (Debug)
             curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_WHITE) # For text highlight
-    
+        stdscr.bkgd(' ', curses.color_pair(1) | curses.A_BOLD)
     def cli_settings_menu(select_theme):
         pos_y = 2
         pos_x = 1
@@ -726,6 +793,10 @@ def main(stdscr):
                         box_width = int(width * 0.4)
                         box_height = int(height * 0.4)
                         draw_box(height//2-(box_height // 2), width//2-(box_width // 2), box_width, box_height)
+                        box_title = "Theme selector"
+                        box_add = "Press enter to preview"
+                        stdscr.addstr(int(height*0.40), width//2-len(box_title)//2,box_title)
+                        stdscr.addstr(int(height*0.45), width//2-len(box_add)//2,box_add)
                         if line == 0:
                             stdscr.addstr(height//2, width//2-len(themes[select_theme]) // 2, themes[select_theme], curses.color_pair(7))
                             stdscr.addstr(height//2+int(height*0.1), width//2-int(box_width // 3), options[0], curses.A_BOLD)
@@ -777,12 +848,24 @@ def main(stdscr):
                                 while True:
                                     stdscr.clear()
                                     height, width = stdscr.getmaxyx()
+                                    cli_themes(select_theme)
+                                    stdscr.addstr(height-1,0,f"Previewing: {(themes[select_theme])[3:-3]}", curses.color_pair(1))
                                     cli_draw_interface()
                                     cli_top_bar()
+                                    window_info = WindowData(width, height)
+                                    cli_info_box(xl_info_amount)
+                                    box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window4')
+                                    stdscr.addstr(box_y+1, box_x+1, "Errors",curses.color_pair(4))
+                                    key = stdscr.getch()
                                     
-                                    
-                                    if stdscr.getch() == ord('\n'):
+                                    if key == ord('\n') or key == ord('q') or key == ord('Q'):
                                         break
+                                    elif key == curses.KEY_LEFT:
+                                        if select_theme > 0:
+                                            select_theme -= 1
+                                    elif key == curses.KEY_RIGHT:
+                                        if select_theme < len(themes)-1:
+                                            select_theme += 1
                                     stdscr.refresh()
                         stdscr.refresh()
                 elif select == len(settings)-1:
@@ -791,6 +874,8 @@ def main(stdscr):
 
             # Refresh the screen
             stdscr.refresh()
+    
+    cli_themes(select_theme)
           
     # Array for holding temperature and humidity
     temperature_hold = []
@@ -843,7 +928,9 @@ def main(stdscr):
                     break
                     # Errors happen fairly often, DHT's are hard to read, just keep going
 
-            if not temperature == None: 
+            if not temperature == None:
+                if temperature_unit == "F":
+                    temperature = int(1.8 * temperature + 32)
                 temperature_hold.append(temperature)
                 humidity_hold.append(humidity)
             end_time = time.time()
@@ -867,70 +954,11 @@ def main(stdscr):
                     box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window1')
                     debug_msg = f"W1: {box_width}x{box_height} "            
                     
-                    # Turn on color pair
-                    stdscr.attron(curses.color_pair(3))
-
-                    # Draw graph
-
-                    # Set up the graph box
-
                     box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window2')
-
                     debug_msg = debug_msg + f"W2: {box_width}x{box_height} " 
-                    
-                    # Set up the graph
-                    graph_x = box_x + 1
-                    graph_x_axis = box_height // 2 + box_y
-
-                    # Draw box and title
-                    graph_name = "Temperature"
-                    
-                    
-                    # Calculate the x-coordinate to center the text
-                    text_x = box_x + box_width // 2 - len(graph_name) // 2 
-                    
-                    stdscr.addstr(box_y-1, text_x, graph_name, curses.A_BOLD)
-                    
-                    # Calculate the scaling factors
-                    if device == dht_convert("DHT11"):
-                        max_value = 50
-                        min_value = 0 # different for each sensor, this one if for DHT11
-                    elif device == dht_convert("DHT22"):
-                        max_value = 80
-                        min_value = 0 # -40 breaks graph
-                    else:
-                        max_value = 80
-                        min_value = 0
-                    scale_factor = (max_value-min_value)/(box_height-2)
+            
+                    cli_graph_box()
                 
-                    
-                    # Generate scaled values for demonstration
-                    scaled_values = [int(scale_factor * value) for value in range(box_height - 2, -1, -1)]
-                    
-                    for y, value in enumerate(scaled_values):
-                        stdscr.addstr(y + box_y + 1 , box_x + box_width + 1, str(value),curses.A_BOLD)
-                    
-                    # Draw the graph points 
-                    
-                    debug_str = ""
-                    # Check if list is too big
-                    
-                    if len(temperature_hold) >= box_width-2:
-                        save_and_reset_array(temperature_hold)
-                    
-                    # Draw graph line
-                    for k, value in enumerate(temperature_hold):
-                        x = 1 + k
-                        for d, value_y in enumerate(scaled_values[::-1]):
-
-                            if value >= value_y:
-                                y = d
-                        
-                        box_y_start = box_y + box_height
-                        
-                        stdscr.addch(box_y_start-1-y, box_x + x, "•", curses.A_BOLD)
-
-                    
                     # Set up error messages
 
                     box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window4')
@@ -1022,7 +1050,7 @@ def main(stdscr):
             
             if not temperature == None:
                 if allowtxt == 1:
-                    #info_xl.append(write_to_txt(temperature,humidity)) # Currently broken
+                    info_xl.extend(write_to_txt(temperature,humidity))
                     pass
                 if allowxl == 1 or allowimg == 1:
                 # flag == 1 -> allow only xl, flag == 2 allow only image, flag == 3 allow both
@@ -1033,8 +1061,7 @@ def main(stdscr):
                         flag = 1
                     else:
                         flag = 2
-                    info_xl = write_to_xl(temperature,humidity,flag)
-                    #info_xl.append(write)
+                    info_xl.extend(write_to_xl(temperature,humidity,flag))
             
         except Exception as error:
                 dhtDevice.exit()
