@@ -1,4 +1,4 @@
-#DHT Reader v0.21 by D3SXX
+#DHT Reader v0.24 by D3SXX
 
 try:
     import os # consider removing
