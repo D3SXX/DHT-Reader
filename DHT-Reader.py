@@ -1,4 +1,4 @@
-#DHT Reader v0.24 by D3SXX
+#DHT Reader v0.25 by D3SXX
 
 try:
     import os # consider removing
@@ -17,56 +17,8 @@ except:
     print("pip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter")
     raise SystemExit()
 
-parser = argparse.ArgumentParser(description='A DHT-Reader CLI Interface')
-parser.add_argument('--skip', action='store_true', help='Skip config check')
-parser.add_argument('--debug', action='store_true', help='Show debug info')
 
 
-class WindowData:
-    def __init__(self, width, height):
-        
-        top_window_y = 4
-        bottom_window_y = top_window_y + height // 2
-        box_width_right = width*55//100+1
-        box_width_left = width-box_width_right-3 # Leave some space for graph numbers
-        box_height_top = int(height*0.5)
-        if args.debug:
-            box_height_bottom = int(height-box_height_top-top_window_y-3) # Add additional space for debug info
-        else:
-            box_height_bottom = int(height-box_height_top-top_window_y-2)
-        
-        self.window_data = {
-            'window1': {
-                'box_x': 0,
-                'box_y': top_window_y,
-                'box_width': box_width_right,  # Should always connect to the graph box
-                'box_height': box_height_top
-            },
-            'window2': {
-                'box_x': width*55//100,
-                'box_y': top_window_y,
-                'box_width': box_width_left,
-                'box_height': box_height_top
-            },
-            'window4': {
-                'box_x': width*55//100,
-                'box_y': bottom_window_y,
-                'box_width': box_width_left,
-                'box_height': box_height_bottom 
-            },
-            'window3': {
-                'box_x': 0,
-                'box_y': bottom_window_y,
-                'box_width': box_width_right,
-                'box_height': box_height_bottom 
-            }
-        }
-
-    def get_window_coordinates(self, window_name):
-        if window_name in self.window_data:
-            return tuple(self.window_data[window_name].values())
-        else:
-            raise ValueError(f"Window '{window_name}' does not exist.")
 
 # Reset array and add save any sentences
                 
@@ -362,29 +314,35 @@ def write_to_txt(temperature, humidity):
     return [str(f"{txt_filename} ({txt_size} bytes) file was updated ")]
 
 
-# Temporary solution for holding default values here
-args = parser.parse_args()
-allowtxt = 0
-allowxl = 0
-allowimg = 0
-delay_sec = 5
-allow_pulseio = 1
-reset_data = 0
-device = dht_convert("DHT11")
-pin = board.D4
-
-
-
-if not args.skip:
-    allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, data_reset, device, pin = scan_config()
- 
-
 def main(stdscr):
+    
+    parser = argparse.ArgumentParser(description='A DHT-Reader CLI Interface')
+    parser.add_argument('--skip', action='store_true', help='Skip config check')
+    parser.add_argument('--debug', action='store_true', help='Show debug info')
+    
+    # Temporary solution for holding default values here
+    args = parser.parse_args()
+    allowtxt = 0
+    allowxl = 0
+    allowimg = 0
+    delay_sec = 5
+    allow_pulseio = 1
+    reset_data = 0
+    device = dht_convert("DHT11")
+    pin = board.D4
+    if not args.skip:
+        allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, data_reset, device, pin = scan_config()
+    
+    # Initial the dht device, with data pin connected to:
+    pin_value = getattr(board, "D" + str(pin))
+    dhtDevice = device(pin_value, bool(allow_pulseio))
+    
     
     
     # Future variables that will be added to the config file
     select_theme = 0
     temperature_unit = "C"
+    graph_environment = "Temperature"
     
     debug_msg = ""
     ascii_logo = '''
@@ -403,6 +361,53 @@ def main(stdscr):
     curses.start_color()
     curses.use_default_colors()
     
+    
+    
+    class WindowData:
+        def __init__(self, width, height):
+            
+            top_window_y = 4
+            bottom_window_y = top_window_y + height // 2
+            box_width_right = width*55//100+1
+            box_width_left = width-box_width_right-3 # Leave some space for graph numbers
+            box_height_top = int(height*0.5)
+            if args.debug:
+                box_height_bottom = int(height-box_height_top-top_window_y-3) # Add additional space for debug info
+            else:
+                box_height_bottom = int(height-box_height_top-top_window_y-2)
+            
+            self.window_data = {
+                'window1': {
+                    'box_x': 0,
+                    'box_y': top_window_y,
+                    'box_width': box_width_right,  # Should always connect to the graph box
+                    'box_height': box_height_top
+                },
+                'window2': {
+                    'box_x': width*55//100,
+                    'box_y': top_window_y,
+                    'box_width': box_width_left,
+                    'box_height': box_height_top
+                },
+                'window4': {
+                    'box_x': width*55//100,
+                    'box_y': bottom_window_y,
+                    'box_width': box_width_left,
+                    'box_height': box_height_bottom 
+                },
+                'window3': {
+                    'box_x': 0,
+                    'box_y': bottom_window_y,
+                    'box_width': box_width_right,
+                    'box_height': box_height_bottom 
+                }
+            }
+
+        def get_window_coordinates(self, window_name):
+            if window_name in self.window_data:
+                return tuple(self.window_data[window_name].values())
+            else:
+                raise ValueError(f"Window '{window_name}' does not exist.")
     
     def cli_delay(time_sec, x, y):
         while time_sec >= 1:
@@ -616,7 +621,8 @@ def main(stdscr):
         lower_y += 1
         stdscr.addstr(lower_y, lower_x, "Pin: " + str(pin))
         lower_y += 1
-        stdscr.addstr(lower_y, lower_x, "Temperature: " + str(temperature) + " " + temperature_unit)
+        stdscr.addstr(lower_y, lower_x, f"Temperature: {str(temperature)} °{temperature_unit}")
+        
         lower_y += 1
         stdscr.addstr(lower_y, lower_x, "Humidity: " + str(humidity) + "%" )
         lower_y += 1
@@ -636,9 +642,16 @@ def main(stdscr):
                 xl_info_amount += 1 
                 stdscr.addstr(lower_y+xl_info_amount , lower_x, msg_2) 
     
-    def cli_graph_box():
+    def cli_graph_box(environment):
         # Turn on color pair
         stdscr.attron(curses.color_pair(3))
+
+        # Check environment variable and use apropriate data
+        
+        if environment == "Temperature":
+            values = temperature_hold
+        else:
+            values = humidity_hold
 
         # Draw graph
 
@@ -651,7 +664,7 @@ def main(stdscr):
         graph_x_axis = box_height // 2 + box_y
 
         # Draw box and title
-        graph_name = "Temperature"
+        graph_name = environment
                         
                         
         # Calculate the x-coordinate to center the text
@@ -660,18 +673,22 @@ def main(stdscr):
         stdscr.addstr(box_y-1, text_x, graph_name, curses.A_BOLD)
                         
         # Calculate the scaling factors
-        if device == dht_convert("DHT11"):
-            max_value = 50
-            min_value = 0 # different for each sensor, this one if for DHT11
-        elif device == dht_convert("DHT22"):
-            max_value = 80
-            min_value = 0 # -40 breaks graph, fix required
+        if environment == "Temperature":
+            if device == dht_convert("DHT11"):
+                max_value = 50
+                min_value = 0 # different for each sensor, this one if for DHT11
+            elif device == dht_convert("DHT22"):
+                max_value = 80
+                min_value = 0 # -40 breaks graph, fix required
+            else:
+                max_value = 80
+                min_value = 0
+            if temperature_unit == "F":
+                max_value = int(1.8 * max_value + 32)
+                min_value = int(1.8 * min_value + 32)
         else:
-            max_value = 80
+            max_value = 100
             min_value = 0
-        if temperature_unit == "F":
-            max_value = int(1.8 * max_value + 32)
-            min_value = int(1.8 * min_value + 32)       
         
         scale_factor = (max_value-min_value)/(box_height-2)
                     
@@ -687,11 +704,11 @@ def main(stdscr):
         debug_str = ""
         # Check if list is too big
                         
-        if len(temperature_hold) >= box_width-2:
-            save_and_reset_array(temperature_hold)
+        if len(values) >= box_width-2:
+            save_and_reset_array(values)
                         
         # Draw graph line
-        for k, value in enumerate(temperature_hold):
+        for k, value in enumerate(values):
             x = 1 + k
             for d, value_y in enumerate(scaled_values[::-1]):
 
@@ -738,12 +755,17 @@ def main(stdscr):
             curses.init_pair(6, curses.COLOR_BLACK, curses.COLOR_WHITE) # For top pannel indication (Debug)
             curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_WHITE) # For text highlight
         stdscr.bkgd(' ', curses.color_pair(1) | curses.A_BOLD)
-    def cli_settings_menu(select_theme):
+        
+    def cli_settings_menu(select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data):
+        
+        # Flag is only changed if configuration was changed
+        flag = 0
+        
         pos_y = 2
         pos_x = 1
         select = 0
-        settings = ["Change theme","Change configuration","Change temperature unit","Exit"]
         while True:
+            settings = ["Change theme","Change configuration",f"Change temperature unit (°{temperature_unit})" ,"Exit"]
             stdscr.clear()
             height, width = stdscr.getmaxyx()
             draw_box(0, 0, width-1, height-1)
@@ -766,7 +788,7 @@ def main(stdscr):
 
             # Exit the loop
             if key == ord('q') or key == ord('Q'):
-                break
+                select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, flag
             elif key == curses.KEY_UP:
                 if pos_y > 2:
                     pos_y -= 1
@@ -778,6 +800,7 @@ def main(stdscr):
                     
                     themes = ["   Default >>","<< Monochrome >>","<< Classic Blue >>","<< Inverted monochrome   "]
                     options = ["Select","Exit"]
+                    
                     line = 0
                     old_theme = select_theme
                     while True:
@@ -868,8 +891,111 @@ def main(stdscr):
                                             select_theme += 1
                                     stdscr.refresh()
                         stdscr.refresh()
+                elif select == 1:
+                    options = ["DHT Device","Pin","Save data in txt","Save data to Excel", "Save data to image", "Delay time", "Use pulseio", "Reset data each time"]
+                    options_name = ["Change txt file name", "Change Excel file name", "Change image file name"]
+                    line = 0
+                    while True:
+                        options_parameters = [dht_convert(device),f"D{pin}",bool(allowtxt),bool(allowxl),bool(allowimg),f"{delay_sec} Seconds",bool(allow_pulseio),bool(reset_data)]
+                    
+                        stdscr.clear()
+                        height, width = stdscr.getmaxyx()
+                        draw_box(0, 0, width-1, height-1)
+                        
+                        for i, value in enumerate(options):
+                            if line == i:
+                                stdscr.addstr(i+1,1,value, curses.color_pair(7))
+                                stdscr.addstr(i+1,40,str(options_parameters[i]), curses.color_pair(7))
+                            else:
+                                stdscr.addstr(i+1,1,value)
+                                stdscr.addstr(i+1,40,str(options_parameters[i]))
+                        
+                        
+                        # Get user input
+                        key = stdscr.getch()
+                        if key == ord('q') or key == ord('Q'):
+                            break
+                        elif key == curses.KEY_LEFT:
+                            flag = 1
+                            if line == 0:
+                                if dht_convert(device) == "DHT22":
+                                    device = dht_convert("DHT21")
+                                elif dht_convert(device) == "DHT21":
+                                    device = dht_convert("DHT11")
+                                else:
+                                    device = dht_convert("DHT22")
+                        elif key == curses.KEY_RIGHT:
+                            flag = 1
+                            if line == 0:
+                                if dht_convert(device) == "DHT11":
+                                    device = dht_convert("DHT21")
+                                elif dht_convert(device) == "DHT21":
+                                    device = dht_convert("DHT22")
+                                else:
+                                    device = dht_convert("DHT11")
+
+                        elif key == curses.KEY_UP:
+                            if line > 0:
+                                line -= 1
+                        elif key == curses.KEY_DOWN:
+                            if not line > len(options)-2:
+                                line += 1
+                        elif key == ord('\t'):
+                            if line == 0:
+                                line = 1
+                            else:
+                                line = 0
+                        elif key == ord('\n'):
+                            if line == len(options)-1:
+                                break
+                            flag = 1
+                            if line == 0:
+                                if dht_convert(device) == "DHT22":
+                                    device = dht_convert("DHT21")
+                                elif dht_convert(device) == "DHT21":
+                                    device = dht_convert("DHT11")
+                                else:
+                                    device = dht_convert("DHT22")
+                            elif line == 1:
+                                new_pin = "D"
+                                while True:
+                                    stdscr.refresh()
+                                    stdscr.addstr(line+1,40,f"[{new_pin}]", curses.color_pair(7))
+                                    enter = stdscr.getstr().decode()
+                                    if enter == "":
+                                        break
+                                    elif enter.isnumeric():
+                                        new_pin += enter
+                                        pin = int(enter)
+                            elif line == 2:
+                                allowtxt = int(not bool(allowtxt))
+                            elif line == 3:
+                                allowxl = int(not bool(allowxl))
+                            elif line == 4:
+                                allowimg = int(not bool(allowimg))
+                            elif line == 5:
+                                new_delay = ""
+                                while True:
+                                    stdscr.refresh()
+                                    stdscr.addstr(line+1,40,f"[{new_delay} Seconds]", curses.color_pair(7))
+                                    enter = stdscr.getstr().decode()
+                                    if enter == "":
+                                        break
+                                    elif enter.isnumeric():
+                                        new_delay += enter
+                                        delay_sec = int(enter)
+                            elif line == 6:
+                                allow_pulseio = int(not bool(allow_pulseio))
+                            elif line == 7:
+                                reset_data = int(not bool(reset_data))
+                                
+                elif select == 2:
+                        if temperature_unit == "C":
+                            temperature_unit = "F"
+                        else:
+                            temperature_unit = "C"
                 elif select == len(settings)-1:
-                    return select_theme
+                    return select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, flag
                 pos_x = 1
 
             # Refresh the screen
@@ -903,11 +1029,6 @@ def main(stdscr):
     if not args.skip:
        cli_read_config()
     
-    # Initial the dht device, with data pin connected to:
-    pin_value = getattr(board, "D" + str(pin))
-    dhtDevice = device(pin_value, bool(allow_pulseio))
-    
-
     while True:
         try:
             #start_time, end_time and time_took are for calculation the time of delay of a sensor
@@ -940,7 +1061,6 @@ def main(stdscr):
             while i>0:
                     stdscr.clear()
 
-                    
                     height, width = stdscr.getmaxyx()
                     
                     window_info = WindowData(width, height)
@@ -957,7 +1077,7 @@ def main(stdscr):
                     box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window2')
                     debug_msg = debug_msg + f"W2: {box_width}x{box_height} " 
             
-                    cli_graph_box()
+                    cli_graph_box(graph_environment)
                 
                     # Set up error messages
 
@@ -1033,10 +1153,15 @@ def main(stdscr):
                     if key == ord('q') or key == ord('Q'):
                         return 0
                     elif key == ord('s') or key == ord('S'): # w.i.p.
-                        select_theme = cli_settings_menu(select_theme)
+                        flag = 0
+                        select_theme, temperature_unit, device, pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, flag = cli_settings_menu(select_theme, temperature_unit, device, pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data)
+                        if flag == 1:
+                            logs.append("Configuration was changed")
                     elif key == ord('c') or key == ord('C'):
-                        pass
-                
+                        if graph_environment == "Temperature":
+                            graph_environment = "Humidity"
+                        else:
+                            graph_environment = "Temperature"
                     i -= 1
                     errors_amount = 0
                     xl_info_amount = 0
