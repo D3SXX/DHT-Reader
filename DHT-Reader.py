@@ -1,4 +1,4 @@
-#DHT Reader v0.25 by D3SXX
+#DHT Reader v0.26 by D3SXX
 
 try:
     import os # consider removing
@@ -29,21 +29,6 @@ def save_and_reset_array(array, sentences_to_save=1):
         array.clear()
         array.extend(array_to_save)
         
-        
-def highlight_word(word, flag):
-    # Set the color based on the input parameter
-    if flag == 3:
-        color_code = '\033[97m'  # White
-    elif flag == 0:
-        color_code = '\033[91m'  # Red
-    elif flag == 1:
-        color_code = '\033[92m'  # Green
-    elif flag == 4:
-        color_code = '\033[93m'  # Yellow
-    else:
-        color_code = '\033[0m'  # Default color (no highlighting)
-    print(f"{color_code}{word}\033[0m", end="")
-
 def delay_wait(time_s):
     print("\nThe next reset will be in %d" %time_s, end='..', flush=True)
     for i in reversed(range(time_s)):
@@ -56,18 +41,15 @@ def delay_wait(time_s):
 def dht_convert(device, flag=None):
     if device == "DHT11":
         if flag == 1:
-            highlight_word("\nSomething went wrong, is there enough entries in your config file?\n",0)
-            raise Exception
+            raise Exception("Something went wrong, is there enough entries in your config file?")
         return adafruit_dht.DHT11
     elif device == "DHT22":
         if flag == 1:
-            highlight_word("\nSomething went wrong, is there enough entries in your config file?\n",0)
-            raise Exception        
+            raise Exception("Something went wrong, is there enough entries in your config file?")     
         return adafruit_dht.DHT22
     elif device == "DHT21":
         if flag == 1:
-            highlight_word("\nSomething went wrong, is there enough entries in your config file?\n",0)
-            raise Exception
+            raise Exception("Something went wrong, is there enough entries in your config file?")
         return adafruit_dht.DHT21
     elif device == adafruit_dht.DHT11:
         return "DHT11"
@@ -76,102 +58,36 @@ def dht_convert(device, flag=None):
     elif device == adafruit_dht.DHT21:
         return "DHT21"
     else:
-        print("Something went wrong, check your config file!")
-        raise Exception("Unknown device " + str(device)) 
+        raise Exception("Something went wrong, check your config file!\nUnknown device " + str(device)) 
 
-def scan_config():
+def read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment):
+    
     config_file = 'dhtreader.ini'
-    device = "DHT11"
-    pin = board.D4
-    allowtxt = 0
-    allowxl = 0
-    allowpng = 0
-    delay_sec = 5
-    reset_data = 0
-    allow_pulseio = 1
-    if not os.path.isfile(config_file):
-        create_new_config = input(f"Config file '{config_file}' does not exist.\nDo you want to create a new config file? (y/n): ")
-        if create_new_config.lower() == 'y':
-            # Create a new config file
-            config = configparser.ConfigParser()
-            tmp = 0
-            print("Type y or n, or press enter to select the default option")
-            while True:
-                tmp = str(input("Choose any model of DHT which you would like to read\n1. DHT11\n2. DHT22\n3. DHT21/AM2301\n"))
-                if input == '1':
-                    break
-                elif input == '2':
-                    device = "DHT22"
-                    break
-                elif input == '3':
-                    device = "DHT21"
-                    break
-                else:
-                    break
-            while True:
-                tmp = str(input("Choose any pin\n1. D4\n2. D5\n3. D17\n4. D22\n5. D27\n"))
-                if input == '1':
-                    break
-                elif input == '2':
-                    pin = board.D5
-                    break
-                elif input == '3':
-                    pin = board.D17
-                    break
-                elif input == '4':
-                    pin = board.D22
-                    break
-                elif input == '5':
-                    pin = board.D27
-                    break
-                else:
-                    break
-                                
-            tmp = str(input("Write data in txt file? (default is no)"))
-            if tmp.lower() == "y":
-                allowtxt = 1
-            tmp = str(input("Write data in excel file? (default is no)"))
-            if tmp.lower() == "y":
-                allowxl = 1
-            tmp = input("Make a DHT_Reader.png image with temperature and humidity?")
-            if tmp.lower() == "y":
-                allowpng = 1
-            while True:
-                tmp = str(input("Type any delay value in seconds (default is 5)"))
-                if tmp == "":
-                    break
-                elif tmp.isdecimal() == True:
-                    if int(tmp) > 0:
-                        delay_sec = int(tmp)   
-                        break
-                else:
-                    print("Wrong input! Use any numbers that are greater than 0")
-            tmp = input("Use pulseio(Change this option only if you can't read any data, default is yes)")
-            if tmp.lower() == "n":
-                allow_pulseio = 0
-            tmp = str(input("Would you like to reset data every time the program is run?"))
-            if tmp.lower() == "y":
-                reset_data = 1
-            config['dhtreader'] = {
-                'DeviceModel':device,
-                'Pin':pin,
-                'SaveDataInTxt':allowtxt,
-                'RecordToExcel':allowxl,
-                'CreateImage':allowpng,
-                'DelayTime':delay_sec,
-                'UsePulseio':allow_pulseio,
-                'ResetData':reset_data
-            }
+    
+    if flag == 1:
+        
+        # Create a ConfigParser object
+        config = configparser.ConfigParser()
+        
+        device = dht_convert(device)
+        
+        config['dhtreader'] = {
+            'DeviceModel':device,
+            'Pin':pin,
+            'SaveDataInTxt':allowtxt,
+            'RecordToExcel':allowxl,
+            'CreateImage':allowimg,
+            'DelayTime':delay_sec,
+            'UsePulseio':allow_pulseio,
+            'ResetData':reset_data,
+            'Theme':select_theme,
+            'TemperatureUnit':temperature_unit,
+            'GraphEnviroment':graph_environment
+        }
 
-            with open(config_file, 'w') as file:
-                config.write(file)
-            #change device type so the program will work
-            device = dht_convert(device)
-            print(f"New config file '{config_file}' created.")
-        else:
-            print("No new config file created, using default values.")
-            #change device type so the program will work
-            device = dht_convert(device)
+        with open(config_file, 'w') as file:
+            config.write(file)
+        return True
     else:
         # Create a ConfigParser object
         config = configparser.ConfigParser()
@@ -185,17 +101,20 @@ def scan_config():
             pin = config.get('dhtreader','Pin')
             allowtxt = config.getint('dhtreader', 'SaveDataInTxt')
             allowxl = config.getint('dhtreader', 'RecordToExcel')
-            allowpng = config.getint('dhtreader','CreateImage')
+            allowimg = config.getint('dhtreader','CreateImage')
             delay_sec = config.getint('dhtreader', 'DelayTime')
             allow_pulseio = config.getint('dhtreader','UsePulseio')
             reset_data = config.getint('dhtreader','resetdata')
+            select_theme = config.getint('dhtreader','Theme')
+            temperature_unit = config.get('dhtreader','TemperatureUnit')
+            graph_environment = config.get('dhtreader','GraphEnviroment')
                 
             # Convert "device" from str to appropriate type
             device = dht_convert(device)
-                    
+            return select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment    
         except configparser.Error as e:
-            print(f"Error reading the config file: {e}")
-    return allowtxt, allowxl, allowpng, delay_sec, allow_pulseio, reset_data, device, pin
+            return f"Error reading the config file: {e}"
+            
 
 
 # Create an Excel file and an Image.
@@ -320,8 +239,10 @@ def main(stdscr):
     parser.add_argument('--skip', action='store_true', help='Skip config check')
     parser.add_argument('--debug', action='store_true', help='Show debug info')
     
-    # Temporary solution for holding default values here
+    
     args = parser.parse_args()
+    
+    # Default values
     allowtxt = 0
     allowxl = 0
     allowimg = 0
@@ -330,16 +251,6 @@ def main(stdscr):
     reset_data = 0
     device = dht_convert("DHT11")
     pin = board.D4
-    if not args.skip:
-        allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, data_reset, device, pin = scan_config()
-    
-    # Initial the dht device, with data pin connected to:
-    pin_value = getattr(board, "D" + str(pin))
-    dhtDevice = device(pin_value, bool(allow_pulseio))
-    
-    
-    
-    # Future variables that will be added to the config file
     select_theme = 0
     temperature_unit = "C"
     graph_environment = "Temperature"
@@ -409,6 +320,28 @@ def main(stdscr):
             else:
                 raise ValueError(f"Window '{window_name}' does not exist.")
     
+    def cli_check_config_file():
+        config_file = 'dhtreader.ini'
+        if not os.path.isfile(config_file):
+            while True:
+                create_new_config = [f"Config file '{config_file}' does not exist.","Do you want to create a new config file? (y/n): "]
+                stdscr.clear()
+                height, width = stdscr.getmaxyx()
+                draw_box(0, 0, width-1, height-1)
+                for i, value in enumerate(create_new_config):
+                    stdscr.addstr(i+1,1,value)
+                    
+                # Get user input
+                key = stdscr.getch()
+                
+                if key == ord('y') or key == ord('Y'):
+                    return "Create"
+                elif key == ord('n') or key == ord('N'):
+                    return False
+                stdscr.refresh()
+        else:
+            return True
+            
     def cli_delay(time_sec, x, y):
         while time_sec >= 1:
             delay_text = f"The next reset will be in {time_sec} seconds"
@@ -500,6 +433,7 @@ def main(stdscr):
                 
     def cli_read_config():
         
+        stdscr.clear()
         height, width = stdscr.getmaxyx()
         window_info = WindowData(width, height)
         
@@ -576,6 +510,7 @@ def main(stdscr):
             stdscr.addstr(y, 0, logs[8],curses.A_BOLD)
             stdscr.refresh()
             y += 1
+        
         
         stdscr.addstr(y, 0, ascii_logo,curses.A_BOLD)
         y += 6
@@ -756,10 +691,13 @@ def main(stdscr):
             curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_WHITE) # For text highlight
         stdscr.bkgd(' ', curses.color_pair(1) | curses.A_BOLD)
         
-    def cli_settings_menu(select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data):
+    def cli_settings_menu(select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment):
         
         # Flag is only changed if configuration was changed
         flag = 0
+        
+        # Object to hold old values for comparison
+        old_values = [select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment]
         
         pos_y = 2
         pos_x = 1
@@ -788,7 +726,10 @@ def main(stdscr):
 
             # Exit the loop
             if key == ord('q') or key == ord('Q'):
-                select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, flag
+                new_values = [select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment]
+                if old_values != new_values:
+                    flag = 1
+                return select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data,graph_environment, flag
             elif key == curses.KEY_UP:
                 if pos_y > 2:
                     pos_y -= 1
@@ -892,11 +833,11 @@ def main(stdscr):
                                     stdscr.refresh()
                         stdscr.refresh()
                 elif select == 1:
-                    options = ["DHT Device","Pin","Save data in txt","Save data to Excel", "Save data to image", "Delay time", "Use pulseio", "Reset data each time"]
+                    options = ["DHT Device","Pin","Save data in txt","Save data to Excel", "Save data to image", "Delay time", "Use pulseio", "Reset data each time", "Exit"]
                     options_name = ["Change txt file name", "Change Excel file name", "Change image file name"]
                     line = 0
                     while True:
-                        options_parameters = [dht_convert(device),f"D{pin}",bool(allowtxt),bool(allowxl),bool(allowimg),f"{delay_sec} Seconds",bool(allow_pulseio),bool(reset_data)]
+                        options_parameters = [dht_convert(device),f"D{pin}",bool(allowtxt),bool(allowxl),bool(allowimg),f"{delay_sec} Seconds",bool(allow_pulseio),bool(reset_data), ""]
                     
                         stdscr.clear()
                         height, width = stdscr.getmaxyx()
@@ -916,7 +857,6 @@ def main(stdscr):
                         if key == ord('q') or key == ord('Q'):
                             break
                         elif key == curses.KEY_LEFT:
-                            flag = 1
                             if line == 0:
                                 if dht_convert(device) == "DHT22":
                                     device = dht_convert("DHT21")
@@ -925,7 +865,6 @@ def main(stdscr):
                                 else:
                                     device = dht_convert("DHT22")
                         elif key == curses.KEY_RIGHT:
-                            flag = 1
                             if line == 0:
                                 if dht_convert(device) == "DHT11":
                                     device = dht_convert("DHT21")
@@ -948,7 +887,6 @@ def main(stdscr):
                         elif key == ord('\n'):
                             if line == len(options)-1:
                                 break
-                            flag = 1
                             if line == 0:
                                 if dht_convert(device) == "DHT22":
                                     device = dht_convert("DHT21")
@@ -995,14 +933,33 @@ def main(stdscr):
                         else:
                             temperature_unit = "C"
                 elif select == len(settings)-1:
-                    return select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, flag
+                    new_values = [select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment]
+                    if old_values != new_values:
+                        flag = 1
+                    return select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data,graph_environment, flag
                 pos_x = 1
 
             # Refresh the screen
             stdscr.refresh()
     
+    cli_themes()
+    
+    if not args.skip:
+        cfg = cli_check_config_file()
+        if cfg == "Create":
+            select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data,graph_environment, flag = cli_settings_menu(select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment)
+            flag = 1
+            read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment)
+        elif cfg == True:
+            flag = 2
+            select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment = read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment)
+    
     cli_themes(select_theme)
-          
+    
+    # Initial the dht device, with data pin connected to:
+    pin_value = getattr(board, "D" + str(pin))
+    dhtDevice = device(pin_value, bool(allow_pulseio))
+    
     # Array for holding temperature and humidity
     temperature_hold = []
     humidity_hold = []
@@ -1154,8 +1111,9 @@ def main(stdscr):
                         return 0
                     elif key == ord('s') or key == ord('S'): # w.i.p.
                         flag = 0
-                        select_theme, temperature_unit, device, pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, flag = cli_settings_menu(select_theme, temperature_unit, device, pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data)
+                        select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data,graph_environment, flag = cli_settings_menu(select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment)
                         if flag == 1:
+                            read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment)
                             logs.append("Configuration was changed")
                     elif key == ord('c') or key == ord('C'):
                         if graph_environment == "Temperature":
@@ -1192,7 +1150,6 @@ def main(stdscr):
                 dhtDevice.exit()
                 raise error
         except KeyboardInterrupt:
-                print("Quitting the program!")
                 raise SystemExit
     
 curses.wrapper(main)
