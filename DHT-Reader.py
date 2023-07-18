@@ -1,4 +1,4 @@
-#DHT Reader v0.26 by D3SXX
+#DHT Reader v0.27 by D3SXX
 
 try:
     import os # consider removing
@@ -60,7 +60,7 @@ def dht_convert(device, flag=None):
     else:
         raise Exception("Something went wrong, check your config file!\nUnknown device " + str(device)) 
 
-def read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment):
+def read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename,excel_filename, img_filename):
     
     config_file = 'dhtreader.ini'
     
@@ -82,7 +82,10 @@ def read_and_write_config(flag, select_theme, temperature_unit, device,pin, allo
             'ResetData':reset_data,
             'Theme':select_theme,
             'TemperatureUnit':temperature_unit,
-            'GraphEnviroment':graph_environment
+            'GraphEnviroment':graph_environment,
+            'TxtFilename':txt_filename,
+            'ExcelFilename':excel_filename,
+            'ImageFilename':img_filename
         }
 
         with open(config_file, 'w') as file:
@@ -108,20 +111,22 @@ def read_and_write_config(flag, select_theme, temperature_unit, device,pin, allo
             select_theme = config.getint('dhtreader','Theme')
             temperature_unit = config.get('dhtreader','TemperatureUnit')
             graph_environment = config.get('dhtreader','GraphEnviroment')
+            txt_filename = config.get('dhtreader','TxtFilename')
+            excel_filename = config.get('dhtreader','ExcelFilename')
+            img_filename = config.get('dhtreader','ImageFilename')
                 
             # Convert "device" from str to appropriate type
             device = dht_convert(device)
-            return select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment    
+            return select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename   
         except configparser.Error as e:
-            return f"Error reading the config file: {e}"
+            raise SystemExit(f"Error reading config file! {e}")
             
 
 
 # Create an Excel file and an Image.
-def write_to_xl(temperature, humidity, flag):
+def write_to_xl(temperature, humidity,excel_filename, img_filename, flag):
     # flag == 1 -> allow only xl, flag == 2 allow only image, flag == 3 allow both
     return_list = []
-    xl_filename = "T_and_H.xlsx"
     
     now = datetime.now()
     date_time = now.strftime("%d/%m/%Y, %H:%M:%S")
@@ -156,7 +161,7 @@ def write_to_xl(temperature, humidity, flag):
     if flag == 2 or flag == 3:
         start_time = time.time()
         # Plot the humidity and temperature data
-        img_name = "DHT_Reader.png"
+        
         # Create a figure and axis objects
         fig, ax = plt.subplots()
     
@@ -170,16 +175,16 @@ def write_to_xl(temperature, humidity, flag):
         # Add labels and legend
         ax.set_xlabel('Amount of reads')
         ax.legend()
-        plt.savefig(img_name, dpi=300, bbox_inches='tight')
+        plt.savefig(img_filename, dpi=300, bbox_inches='tight')
         full_time = time.time() - start_time
-        img_size = os.path.getsize(img_name)
-        return_list.append(f"An image {img_name} ({img_size} bytes) was created in {full_time:.2f} seconds")
+        img_size = os.path.getsize(img_filename)
+        return_list.append(f"An image {img_filename} ({img_size} bytes) was created in {full_time:.2f} seconds")
         if flag == 2:
             return return_list
 
     # Create an Excel workbook and worksheet
     
-    workbook = xlsxwriter.Workbook(xl_filename, {'strings_to_numbers': True})
+    workbook = xlsxwriter.Workbook(excel_filename, {'strings_to_numbers': True})
     worksheet = workbook.add_worksheet()
     datetime_format = workbook.add_format({'num_format': 'dd/mm/yyyy, hh:mm:ss'})
     number_format = workbook.add_format({'num_format': '0'})
@@ -211,13 +216,13 @@ def write_to_xl(temperature, humidity, flag):
 
     # Close the workbook
     workbook.close()
-    xl_size = os.path.getsize(xl_filename)
-    return_list.append(f"An Excel file {xl_filename} ({xl_size} bytes) with {a} entries was created")
+    xl_size = os.path.getsize(excel_filename)
+    return_list.append(f"An Excel file {excel_filename} ({xl_size} bytes) with {a} entries was created")
     
     return return_list 
     
-def write_to_txt(temperature, humidity):
-    txt_filename = "T_and_H.txt"
+def write_to_txt(temperature, humidity, txt_filename):
+
     # Record data in a text file
     with open(txt_filename, "a") as f:
         # Check what is the time right now
@@ -254,6 +259,11 @@ def main(stdscr):
     select_theme = 0
     temperature_unit = "C"
     graph_environment = "Temperature"
+    
+    txt_filename = "T_and_H.txt"
+    excel_filename = "T_and_H.xlsx"
+    img_filename = "T_and_H.png"
+    
     
     debug_msg = ""
     ascii_logo = '''
@@ -527,8 +537,12 @@ def main(stdscr):
         if args.debug:
             cli_debug(debug_msg)
             bottom_y -= 1
-        bottom_msg = "Press Q to (Q)uit | S to open (S)ettings | C to (C)hange graph"
-        stdscr.addstr(bottom_y, bottom_x,bottom_msg, curses.A_BOLD)
+        bottom_msg = "Press Q to (Q)uit | S to open (S)ettings | C to (C)hange graph | T to skip delay"
+        cut = len(bottom_msg)
+        if len(bottom_msg) > width:
+            cut = len(bottom_msg) - (len(bottom_msg) - width)
+            
+        stdscr.addstr(bottom_y, bottom_x,bottom_msg[:cut], curses.A_BOLD)
     
     def cli_info_box(xl_info_amount):
         
@@ -691,13 +705,13 @@ def main(stdscr):
             curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_WHITE) # For text highlight
         stdscr.bkgd(' ', curses.color_pair(1) | curses.A_BOLD)
         
-    def cli_settings_menu(select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment):
+    def cli_settings_menu(select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename,excel_filename, img_filename):
         
         # Flag is only changed if configuration was changed
         flag = 0
         
         # Object to hold old values for comparison
-        old_values = [select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment]
+        old_values = [select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename]
         
         pos_y = 2
         pos_x = 1
@@ -726,10 +740,10 @@ def main(stdscr):
 
             # Exit the loop
             if key == ord('q') or key == ord('Q'):
-                new_values = [select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment]
+                new_values = [select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename,excel_filename, img_filename]
                 if old_values != new_values:
                     flag = 1
-                return select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data,graph_environment, flag
+                return select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data,graph_environment, txt_filename,excel_filename, img_filename, flag
             elif key == curses.KEY_UP:
                 if pos_y > 2:
                     pos_y -= 1
@@ -833,12 +847,11 @@ def main(stdscr):
                                     stdscr.refresh()
                         stdscr.refresh()
                 elif select == 1:
-                    options = ["DHT Device","Pin","Save data in txt","Save data to Excel", "Save data to image", "Delay time", "Use pulseio", "Reset data each time", "Exit"]
-                    options_name = ["Change txt file name", "Change Excel file name", "Change image file name"]
+                    options = ["DHT Device","Pin","Save data in txt","Save data to Excel", "Save data to image", "Delay time", "Use pulseio", "Reset data each time","Change txt file name", "Change Excel file name", "Change image file name", "Exit"]
                     line = 0
                     while True:
-                        options_parameters = [dht_convert(device),f"D{pin}",bool(allowtxt),bool(allowxl),bool(allowimg),f"{delay_sec} Seconds",bool(allow_pulseio),bool(reset_data), ""]
-                    
+                        options_parameters = [dht_convert(device),f"D{pin}",bool(allowtxt),bool(allowxl),bool(allowimg),f"{delay_sec} Seconds",bool(allow_pulseio),bool(reset_data), txt_filename, excel_filename, img_filename, ""]
+                        
                         stdscr.clear()
                         height, width = stdscr.getmaxyx()
                         draw_box(0, 0, width-1, height-1)
@@ -864,6 +877,23 @@ def main(stdscr):
                                     device = dht_convert("DHT11")
                                 else:
                                     device = dht_convert("DHT22")
+                            elif line == 1:
+                                if int(pin) > 0:
+                                    pin = int(pin) - 1
+                            elif line == 2:
+                                allowtxt = int(not bool(allowtxt))
+                            elif line == 3:
+                                allowxl = int(not bool(allowxl))
+                            elif line == 4:
+                                allowimg = int(not bool(allowimg))
+                            elif line == 5:
+                                if delay_sec > 0:
+                                    delay_sec -= 1
+                            elif line == 6:
+                                allow_pulseio = int(not bool(allow_pulseio))
+                            elif line == 7:
+                                reset_data = int(not bool(reset_data))                                
+                                
                         elif key == curses.KEY_RIGHT:
                             if line == 0:
                                 if dht_convert(device) == "DHT11":
@@ -872,7 +902,21 @@ def main(stdscr):
                                     device = dht_convert("DHT22")
                                 else:
                                     device = dht_convert("DHT11")
-
+                            elif line == 1:
+                                if int(pin) < 40:
+                                    pin = int(pin) + 1
+                            elif line == 2:
+                                allowtxt = int(not bool(allowtxt))
+                            elif line == 3:
+                                allowxl = int(not bool(allowxl))
+                            elif line == 4:
+                                allowimg = int(not bool(allowimg))
+                            elif line == 5:
+                                delay_sec += 1
+                            elif line == 6:
+                                allow_pulseio = int(not bool(allow_pulseio))
+                            elif line == 7:
+                                reset_data = int(not bool(reset_data))     
                         elif key == curses.KEY_UP:
                             if line > 0:
                                 line -= 1
@@ -926,17 +970,61 @@ def main(stdscr):
                                 allow_pulseio = int(not bool(allow_pulseio))
                             elif line == 7:
                                 reset_data = int(not bool(reset_data))
-                                
+                            elif line == 8:
+                                new_filename = ""
+                                space = ""
+                                for i in range(len(txt_filename)-4):
+                                    space += " " 
+                                while True:
+                                    stdscr.refresh()
+                                    stdscr.addstr(line+1,40,f"[{space}{new_filename}.txt]", curses.color_pair(7))
+                                    enter = stdscr.getstr().decode()
+                                    if enter == "":
+                                        break
+                                    else:
+                                        new_filename += enter
+                                        txt_filename = enter + ".txt"
+                                        space = ""
+                            elif line == 9:
+                                new_filename = ""
+                                space = ""
+                                for i in range(len(excel_filename)-5):
+                                    space += " " 
+                                while True:
+                                    stdscr.refresh()
+                                    stdscr.addstr(line+1,40,f"[{space}{new_filename}.xlsx]", curses.color_pair(7))
+                                    enter = stdscr.getstr().decode()
+                                    if enter == "":
+                                        break
+                                    else:
+                                        new_filename += enter
+                                        excel_filename = enter + ".xlsx"
+                                        space = ""
+                            elif line == 10:
+                                new_filename = ""
+                                space = ""
+                                for i in range(len(img_filename)-4):
+                                    space += " " 
+                                while True:
+                                    stdscr.refresh()
+                                    stdscr.addstr(line+1,40,f"[{space}{new_filename}.png]", curses.color_pair(7))
+                                    enter = stdscr.getstr().decode()
+                                    if enter == "":
+                                        break
+                                    else:
+                                        new_filename += enter
+                                        img_filename = enter + ".png"
+                                        space = ""
                 elif select == 2:
                         if temperature_unit == "C":
                             temperature_unit = "F"
                         else:
                             temperature_unit = "C"
                 elif select == len(settings)-1:
-                    new_values = [select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment]
+                    new_values = [select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment,txt_filename, excel_filename, img_filename]
                     if old_values != new_values:
                         flag = 1
-                    return select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data,graph_environment, flag
+                    return select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data,graph_environment, txt_filename, excel_filename, img_filename, flag
                 pos_x = 1
 
             # Refresh the screen
@@ -947,13 +1035,13 @@ def main(stdscr):
     if not args.skip:
         cfg = cli_check_config_file()
         if cfg == "Create":
-            select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data,graph_environment, flag = cli_settings_menu(select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment)
+            select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data,graph_environment, txt_filename,excel_filename, img_filename, flag = cli_settings_menu(select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename,excel_filename, img_filename)
             flag = 1
-            read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment)
+            read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename,excel_filename, img_filename)
         elif cfg == True:
             flag = 2
-            select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment = read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment)
-    
+            select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename = read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename,excel_filename, img_filename)
+
     cli_themes(select_theme)
     
     # Initial the dht device, with data pin connected to:
@@ -1111,15 +1199,18 @@ def main(stdscr):
                         return 0
                     elif key == ord('s') or key == ord('S'): # w.i.p.
                         flag = 0
-                        select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data,graph_environment, flag = cli_settings_menu(select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment)
+                        select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data,graph_environment, txt_filename, excel_filename, img_filename, flag = cli_settings_menu(select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename)
                         if flag == 1:
-                            read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment)
+                            read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename)
+                            i = delay_sec
                             logs.append("Configuration was changed")
                     elif key == ord('c') or key == ord('C'):
                         if graph_environment == "Temperature":
                             graph_environment = "Humidity"
                         else:
                             graph_environment = "Temperature"
+                    elif key == ord('t') or key == ord('T'):
+                        i = 0
                     i -= 1
                     errors_amount = 0
                     xl_info_amount = 0
@@ -1133,7 +1224,7 @@ def main(stdscr):
             
             if not temperature == None:
                 if allowtxt == 1:
-                    info_xl.extend(write_to_txt(temperature,humidity))
+                    info_xl.extend(write_to_txt(temperature,humidity,txt_filename))
                     pass
                 if allowxl == 1 or allowimg == 1:
                 # flag == 1 -> allow only xl, flag == 2 allow only image, flag == 3 allow both
@@ -1144,11 +1235,11 @@ def main(stdscr):
                         flag = 1
                     else:
                         flag = 2
-                    info_xl.extend(write_to_xl(temperature,humidity,flag))
+                    info_xl.extend(write_to_xl(temperature,humidity,excel_filename,img_filename,flag))
             
         except Exception as error:
                 dhtDevice.exit()
-                raise error
+                raise SystemExit(error)
         except KeyboardInterrupt:
                 raise SystemExit
     
