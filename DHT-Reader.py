@@ -1,7 +1,7 @@
-#DHT Reader v0.27 by D3SXX
+#DHT Reader v0.28 by D3SXX
 
 try:
-    import os # consider removing
+    import os
     import time
     from datetime import datetime
     import configparser
@@ -13,15 +13,9 @@ try:
     import shutil
     import curses
 except:
-    print("Some dependencies are missing. Please run the following command to install them:")
-    print("pip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter")
-    raise SystemExit()
-
-
-
+    raise SystemExit("Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter")
 
 # Reset array and add save any sentences
-                
 def save_and_reset_array(array, sentences_to_save=1):
     array_length = len(array)
     if array_length > sentences_to_save:
@@ -29,13 +23,6 @@ def save_and_reset_array(array, sentences_to_save=1):
         array.clear()
         array.extend(array_to_save)
         
-def delay_wait(time_s):
-    print("\nThe next reset will be in %d" %time_s, end='..', flush=True)
-    for i in reversed(range(time_s)):
-        print("%d" % i, end= '..', flush=True)
-        time.sleep(1)
-    print("Resetting!")
-
 # A converter for dht name
 # Also if flag is set to 1 it checks for correct name
 def dht_convert(device, flag=None):
@@ -58,8 +45,9 @@ def dht_convert(device, flag=None):
     elif device == adafruit_dht.DHT21:
         return "DHT21"
     else:
-        raise Exception("Something went wrong, check your config file!\nUnknown device " + str(device)) 
+        raise SystemExit("Something went wrong, check your config file!\nUnknown device " + str(device)) 
 
+# Reads or writes to/from the config file, depends on flag
 def read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename,excel_filename, img_filename):
     
     config_file = 'dhtreader.ini'
@@ -121,9 +109,7 @@ def read_and_write_config(flag, select_theme, temperature_unit, device,pin, allo
         except configparser.Error as e:
             raise SystemExit(f"Error reading config file! {e}")
             
-
-
-# Create an Excel file and an Image.
+# Create an Excel file and an Image
 def write_to_xl(temperature, humidity,excel_filename, img_filename, flag):
     # flag == 1 -> allow only xl, flag == 2 allow only image, flag == 3 allow both
     return_list = []
@@ -220,7 +206,8 @@ def write_to_xl(temperature, humidity,excel_filename, img_filename, flag):
     return_list.append(f"An Excel file {excel_filename} ({xl_size} bytes) with {a} entries was created")
     
     return return_list 
-    
+
+#Creare a txt file    
 def write_to_txt(temperature, humidity, txt_filename):
 
     # Record data in a text file
@@ -244,7 +231,6 @@ def main(stdscr):
     parser.add_argument('--skip', action='store_true', help='Skip config check')
     parser.add_argument('--debug', action='store_true', help='Show debug info')
     
-    
     args = parser.parse_args()
     
     # Default values
@@ -260,6 +246,7 @@ def main(stdscr):
     temperature_unit = "C"
     graph_environment = "Temperature"
     
+    # Default filenames
     txt_filename = "T_and_H.txt"
     excel_filename = "T_and_H.xlsx"
     img_filename = "T_and_H.png"
@@ -423,9 +410,9 @@ def main(stdscr):
         clock_y = 0
                     
         # Draw the clock
-
+        
         stdscr.addstr(clock_y, clock_x, current_time, curses.A_BOLD)
-                    
+        
         # Add some icons on the top bar to indicate various things
                     
         icon_x = clock_x + len(current_time) + 2
@@ -532,12 +519,19 @@ def main(stdscr):
         stdscr.addstr(height-1, 0, debug_str, curses.A_BOLD)
 
     def cli_bottom_bar(debug_msg):
+        
+        # Get coordinates
         bottom_x = 0
         bottom_y = height - 1
+        
+        # Check if debug argument is present and draw debug info
         if args.debug:
             cli_debug(debug_msg)
             bottom_y -= 1
+        
+        # Draw bottom bar
         bottom_msg = "Press Q to (Q)uit | S to open (S)ettings | C to (C)hange graph | T to skip delay"
+        # cut is used to remove letters when the width is smaller than the string
         cut = len(bottom_msg)
         if len(bottom_msg) > width:
             cut = len(bottom_msg) - (len(bottom_msg) - width)
@@ -549,7 +543,6 @@ def main(stdscr):
         # Set up the info box
         box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window1')
                     
-        
         # Draw info
                     
         lower_y = box_y + 1
@@ -577,7 +570,6 @@ def main(stdscr):
         lower_y += 1
         stdscr.addstr(lower_y, lower_x, "Sensor delay: " + f"{time_took:.3f} Seconds")
         
-                    
         # Add additional information about Excel and image
         msg_2 = None      
         for msg in info_xl:
@@ -668,6 +660,72 @@ def main(stdscr):
                             
             stdscr.addch(box_y_start-1-y, box_x + x, "•", curses.A_BOLD)
 
+    def cli_error_box(error_msg, errors_amount):
+        
+        # Set up error messages
+
+        box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window4')
+                    
+        if not error_msg == None:
+                        
+            # Check if the size of array is bigger than the box
+            if len(error_msg) >= box_height-1:
+                save_and_reset_array(error_msg)
+                            
+            # Turn on color pair
+            stdscr.attron(curses.color_pair(4))
+                        
+            msg_2 = None      
+            for msg in error_msg:
+                errors_amount += 1
+                # Check if the error message is bigger than the width of the box and add \n to conpensate
+                if len(msg) > box_width-2:
+                    msg_2 = msg[box_width-2:]
+                    msg = msg[:box_width-2] 
+                stdscr.addstr(box_y+errors_amount , box_x+1, msg)
+                if not msg_2 == None:
+                    errors_amount += 1 
+                    if errors_amount >= box_height-1:
+                        # Perhaps not the best way to solve the issue of checking if the text will fit on display, but it works
+                        error_msg = error_msg + error_msg
+                        break
+                    stdscr.addstr(box_y+errors_amount , box_x+1, msg_2) 
+            stdscr.attroff(curses.color_pair(4))
+            return errors_amount 
+    
+    def cli_logs_box(logs,logs_amount):
+        
+        # Set up logs.
+                    
+        box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window3')
+                     
+        if not logs == None:
+                        
+            # Check if the size of array is bigger than the box
+            if len(logs) >= box_height-1:
+                save_and_reset_array(logs,box_height-1)
+                            
+            # Turn on color pair
+            stdscr.attron(curses.color_pair(1))
+                        
+            msg_2 = None      
+            for msg in logs:
+                logs_amount += 1
+                # Check if the error message is bigger than the width of the box and add \n to conpensate
+                if len(msg) > box_width-2:
+                    msg_2 = msg[box_width-2:]
+                    msg = msg[:box_width-2] 
+                stdscr.addstr(box_y+logs_amount , box_x+1, msg)
+                if not msg_2 == None:
+                    logs_amount += 1 
+                    if logs_amount >= box_height-1:
+                        # Perhaps not the best way to solve the issue of checking if the text will fit on display, but it works
+                        logs = logs + logs
+                        break
+                    stdscr.addstr(box_y+logs_amount , box_x+1, msg_2) 
+            stdscr.attroff(curses.color_pair(1))
+            return logs_amount
+    
     def cli_themes(select = 0):
         # Define color pairs
         
@@ -1030,6 +1088,7 @@ def main(stdscr):
             # Refresh the screen
             stdscr.refresh()
     
+    # Apply default theme
     cli_themes()
     
     if not args.skip:
@@ -1042,6 +1101,7 @@ def main(stdscr):
             flag = 2
             select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename = read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename,excel_filename, img_filename)
 
+    # Apply theme from config
     cli_themes(select_theme)
     
     # Initial the dht device, with data pin connected to:
@@ -1063,11 +1123,9 @@ def main(stdscr):
     logs = []
     
     # For graph
-    
     tmp_y = 0
     
     # For info window
-    
     xl_info_amount = 0
     info_xl = []
     
@@ -1084,15 +1142,16 @@ def main(stdscr):
                     temperature = dhtDevice.temperature
                     humidity = dhtDevice.humidity
                 except RuntimeError as error:
+                    # Errors happen fairly often, DHT's are hard to read, just keep going
                     
+                    # Add new entry to error box
                     error_msg.append(error.args[0])
                     error_happen = 1
-                    now = datetime.now()
                     
                     # Add entry to logs
+                    now = datetime.now()
                     logs.append("Error hapenned at " + now.strftime("%d/%m/%Y, %H:%M:%S"))
                     break
-                    # Errors happen fairly often, DHT's are hard to read, just keep going
 
             if not temperature == None:
                 if temperature_unit == "F":
@@ -1116,78 +1175,26 @@ def main(stdscr):
                     
                     cli_info_box(xl_info_amount)
 
-                    box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window1')
-                    debug_msg = f"W1: {box_width}x{box_height} "            
                     
-                    box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window2')
-                    debug_msg = debug_msg + f"W2: {box_width}x{box_height} " 
-            
                     cli_graph_box(graph_environment)
                 
-                    # Set up error messages
-
-                    box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window4')
-                    
-                    debug_msg = debug_msg + f"W4: {box_width}x{box_height} " 
-                    
-                    stdscr.attroff(curses.color_pair(2))
-                    if not error_msg == None:
-                        
-                        # Check if the size of array is bigger than the box
-                        if len(error_msg) >= box_height-1:
-                            save_and_reset_array(error_msg)
-                            
-                        # Turn on color pair
-                        stdscr.attron(curses.color_pair(4))
-                        
-                        msg_2 = None      
-                        for msg in error_msg:
-                            errors_amount += 1
-                            # Check if the error message is bigger than the width of the box and add \n to conpensate
-                            if len(msg) > box_width-2:
-                                msg_2 = msg[box_width-2:]
-                                msg = msg[:box_width-2] 
-                            stdscr.addstr(box_y+errors_amount , box_x+1, msg)
-                            if not msg_2 == None:
-                                errors_amount += 1 
-                                if errors_amount >= box_height-1:
-                                    # Perhaps not the best way to solve the issue of checking if the text will fit on display, but it works
-                                    error_msg = error_msg + error_msg
-                                    break
-                                stdscr.addstr(box_y+errors_amount , box_x+1, msg_2) 
-                        stdscr.attroff(curses.color_pair(4)) 
+                    errors_amount = cli_error_box(error_msg, errors_amount)
                                             
-                    # Set up logs.
-                    
-                    box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window3')
-                    
-                    debug_msg = debug_msg + f"W3: {box_width}x{box_height} " 
-                    
-                    if not logs == None:
+                    logs_amount = cli_logs_box(logs, logs_amount)
+
+                    if args.debug:
                         
-                        # Check if the size of array is bigger than the box
-                        if len(logs) >= box_height-1:
-                            save_and_reset_array(logs,box_height-1)
-                            
-                        # Turn on color pair
-                        stdscr.attron(curses.color_pair(1))
+                        box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window1')
+                        debug_msg = f"W1: {box_width}x{box_height} "            
                         
-                        msg_2 = None      
-                        for msg in logs:
-                            logs_amount += 1
-                            # Check if the error message is bigger than the width of the box and add \n to conpensate
-                            if len(msg) > box_width-2:
-                                msg_2 = msg[box_width-2:]
-                                msg = msg[:box_width-2] 
-                            stdscr.addstr(box_y+logs_amount , box_x+1, msg)
-                            if not msg_2 == None:
-                                logs_amount += 1 
-                                if logs_amount >= box_height-1:
-                                    # Perhaps not the best way to solve the issue of checking if the text will fit on display, but it works
-                                    logs = logs + logs
-                                    break
-                                stdscr.addstr(box_y+logs_amount , box_x+1, msg_2) 
-                        stdscr.attroff(curses.color_pair(1))
+                        box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window2')
+                        debug_msg = debug_msg + f"W2: {box_width}x{box_height} " 
+                
+                        box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window3')
+                        debug_msg = debug_msg + f"W3: {box_width}x{box_height} "
+                        
+                        box_x,box_y,box_width, box_height = window_info.get_window_coordinates('window4')
+                        debug_msg = debug_msg + f"W4: {box_width}x{box_height} "  
    
                     cli_bottom_bar(debug_msg)                            
                         
@@ -1196,12 +1203,17 @@ def main(stdscr):
 
                     # Exit the loop
                     if key == ord('q') or key == ord('Q'):
+                        dhtDevice.exit()
                         return 0
-                    elif key == ord('s') or key == ord('S'): # w.i.p.
+                    elif key == ord('s') or key == ord('S'):
                         flag = 0
                         select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data,graph_environment, txt_filename, excel_filename, img_filename, flag = cli_settings_menu(select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename)
                         if flag == 1:
                             read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename)
+                            dhtDevice.exit()
+                            pin_value = getattr(board, "D" + str(pin))
+                            dhtDevice = device(pin_value, bool(allow_pulseio))
+                            
                             i = delay_sec
                             logs.append("Configuration was changed")
                     elif key == ord('c') or key == ord('C'):
