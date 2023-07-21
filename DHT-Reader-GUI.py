@@ -1,4 +1,4 @@
-#DHT Reader v0.30 alpha by D3SXX
+#DHT Reader v0.3 alpha 1 by D3SXX
 
 try:
     import os
@@ -14,11 +14,12 @@ try:
     import xlsxwriter
     import argparse
     import shutil
-    import curses
     import tkinter as tk
     import tkinter.ttk as ttk
 except:
     raise SystemExit("Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter")
+
+version = "v0.3 alpha 1"
 
 # Reset array and add save any sentences
 def save_and_reset_array(array, sentences_to_save=1):
@@ -234,6 +235,9 @@ def write_to_txt(temperature, humidity, txt_filename):
 temperature_hold = []
 humidity_hold = []
 
+logs = ""
+errors = ""
+
 # Default values
 allowtxt = 0
 allowxl = 0
@@ -241,7 +245,7 @@ allowimg = 0
 delay_sec = 5
 allow_pulseio = 1
 reset_data = 0
-device = dht_convert("DHT11")
+device = "DHT11"
 pin = board.D4
 select_theme = 0
 temperature_unit = "C"
@@ -255,14 +259,11 @@ img_filename = "T_and_H.png"
 parser = argparse.ArgumentParser(description='A DHT-Reader CLI Interface')
 parser.add_argument('--skip', action='store_true', help='Skip config check')
 parser.add_argument('--debug', action='store_true', help='Show debug info')
-    
 args = parser.parse_args()
 
 if not args.skip:
     flag = 2
-    select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename = read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename,excel_filename, img_filename)
-
-
+    select_theme, temperature_unit, device, pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename = read_and_write_config(flag, select_theme, temperature_unit, device, pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename)
 
 
 # Initial the dht device, with data pin connected to:
@@ -271,9 +272,96 @@ dhtDevice = device(pin_value, bool(allow_pulseio))
 
 old_delay_sec = delay_sec
 
+def on_settings():
+    
+    global settings_window
+    
+    def on_select(event):
+        selected_index = listbox.curselection()
+        if selected_index:
+            
+            if selected_index[0] == 0:
+                tk_settings_info.set("Device settings")
+                tk_settings_desc.set("DHT devices that are supported by the program are:\nDHT11, DHT21, DHT22")
+            elif selected_index[0] == 1:
+                tk_settings_info.set("Pin settings")
+                tk_settings_desc.set("Connecting a DHT sensor to a Raspberry Pi via GPIO ports enables temperature and humidity monitoring. In theory all pins should work, but most common are:\n GPIO4, GPIO17, GPIO22, GPIO27")
+            selected_item = listbox.get(selected_index)
+            if args.debug:
+                print(f"Selected item: {selected_item} {selected_index[0]}")
+    
+    
+    # Create a new instance of Tk for the new window
+    settings_window = tk.Tk()
+    settings_window.title("Settings")
+
+
+    # Set the minimum size for the window (width, height)
+    settings_window.minsize(600, 300)
+    settings_window.maxsize(800, 600)
+
+    settings_width = settings_window.winfo_width()
+    settings_height = settings_window.winfo_height()
+
+
+    tk_settings_info = tk.StringVar(settings_window)
+    tk_settings_desc = tk.StringVar(settings_window)
+
+    # Define the layout using the grid geometry manager
+    settings_window.grid_rowconfigure(0, weight=3)
+    settings_window.grid_columnconfigure(0, weight=3, minsize=100)  # 30% width
+    settings_window.grid_columnconfigure(1, weight=7)  # 70% width
+    
+
+    # Create four subframes for the grids
+    frame_left = tk.Frame(master=settings_window, bg="white")
+    frame_right = tk.Frame(master=settings_window, bg="white")
+
+    # Grid layout for the four subframes
+    frame_left.grid(row=0, column=0, sticky="nsew")
+    frame_right.grid(row=0, column=1,sticky="nsew", padx = 2, pady = 10)
+
+    settings_information_label = tk.Label(frame_right, textvariable=tk_settings_info, anchor="n", bg="white")
+    settings_information_label.pack(fill="x")
+
+    settings_description_label = tk.Label(frame_right, textvariable=tk_settings_desc, anchor="nw", bg="white", wraplength=400)
+    settings_description_label.pack(fill="x")
+    
+        
+    # Listbox container
+    listbox_container = tk.Frame(master=frame_left)
+    listbox_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+    # Create a Listbox with some options
+    options = [f"Device: {dht_convert(device)}", f"Pin: {pin}        "]
+    listbox = tk.Listbox(listbox_container, selectmode=tk.SINGLE)
+    for option in options:
+        listbox.insert(tk.END, option)
+
+    # Bind the selection event to the on_select function
+    listbox.bind("<<ListboxSelect>>", on_select)
+
+    # Pack the Listbox to display it
+    listbox.pack(padx=5, pady=10, fill=tk.BOTH, expand=True)
+    
+    # Start the event loop for the new window
+    settings_window.mainloop()
+
+def on_close():
+    dhtDevice.exit()
+    print("DHT device disabled, closing the program")
+    window.destroy()
+    try:
+        settings_window.destroy()
+    except:
+        pass
+
 def update_temperature_humidity():
     global delay_sec
     global old_delay_sec
+    global logs
+    global errors
+    global graph_width
     try:
         if delay_sec == old_delay_sec:
             humidity, temperature = None, None
@@ -284,15 +372,16 @@ def update_temperature_humidity():
                     humidity = dhtDevice.humidity
                 except RuntimeError as error:
                     # Handle errors and log them
-                    #error_msg.append(error.args[0])
-                    #error_happen = 1
+                    errors += error.args[0] + "\n"
                     now = datetime.now()
-                    #logs.append("Error happened at " + now.strftime("%d/%m/%Y, %H:%M:%S"))
+                    logs += ("Error happened at " + now.strftime("%d/%m/%Y, %H:%M:%S") + "\n")
+                    tk_logs.set(logs)
+                    tk_errors.set(errors)
                     break
 
             # Update tk values
-            tk_temperature.set(temperature)
-            tk_humidity.set(humidity)
+            tk_temperature.set(f"Temperature: {temperature}")
+            tk_humidity.set(f"Humidity: {humidity}")
 
             if temperature is not None:
                 if temperature_unit == "F":
@@ -304,17 +393,18 @@ def update_temperature_humidity():
             time_took = end_time - start_time
 
         # Update the countdown variable
-        tk_countdown.set(f"{delay_sec} seconds")
+        tk_countdown.set(f"The next update: {delay_sec} seconds")
         delay_sec -= 1  # Decrement the delay
 
         # Schedule the next update
         if delay_sec >= 0:
             window.after(1000, update_temperature_humidity)  # Schedule the next update after 1 second
         else:
-            tk_countdown.set(f"0 seconds")  # Set countdown to 0 when the delay is complete
+            tk_countdown.set(f"The next update: 0 seconds")  # Set countdown to 0 when the delay is complete
             delay_sec = old_delay_sec
             window.after(1000, update_temperature_humidity)
-    
+        if args.debug:
+            tk_debug.set(f"Debug {window.winfo_width()}x{window.winfo_height()}")
     except Exception as error:
         dhtDevice.exit()
         raise SystemExit(error)
@@ -329,82 +419,124 @@ def update_graph():
     a.set_ylabel('Value')
     a.legend()
     canvas.draw()
-
-
-
     
-# Default filenames
-txt_filename = "T_and_H.txt"
-excel_filename = "T_and_H.xlsx"
-img_filename = "T_and_H.png"
-
-
-
-
 window = tk.Tk()
-window.title("DHT Reader v0.3")
+window.title("DHT Reader " + version)
 
-window.columnconfigure(0, minsize=200)
-window.columnconfigure([0, 1, 2, 3], minsize=50)
+# Set the minimum size for the window (width, height)
+window.minsize(800, 600)
 
-frame_info = tk.Frame(master=window)
-frame_graph = tk.Frame(master=window)
-frame_logs = tk.Frame(master=window)
-frame_errors = tk.Frame(master=window)
+# Define the layout using the grid geometry manager
+window.grid_rowconfigure(0, weight=1)
+window.grid_columnconfigure(0, weight=1)
+
+# Create four subframes for the grids
+frame_top_left = tk.Frame(master=window, bg="white")
+frame_top_right = tk.Frame(master=window, bg="white")
+frame_bottom_left = tk.Frame(master=window, bg="white")
+frame_bottom_right = tk.Frame(master=window, bg="white")
+
+# Grid layout for the four subframes
+frame_top_left.grid(row=0, column=0, sticky="nsew")
+frame_top_right.grid(row=0, column=1, sticky="nsew")
+frame_bottom_left.grid(row=1, column=0, sticky="nsew")
+frame_bottom_right.grid(row=1, column=1, sticky="nsew")
 
 # Variables to store values in information box
-tk_temperature = tk.StringVar(window,"None")
-tk_humidity = tk.StringVar(window,"None")
+tk_temperature = tk.StringVar(window, "Temperature: ")
+tk_humidity = tk.StringVar(window, "Humidity: ")
 tk_countdown = tk.StringVar()
 tk_countdown.set(f"{delay_sec} seconds")
-
-# Information box
-temperature_string_label = tk.Label(window, text="Temperature:")
-temperature_string_label.grid(row=0, column=0)
-
-temperature_label = tk.Label(window, textvariable=tk_temperature)
-temperature_label.grid(row=0, column=1)
-
-humidity_string_label = tk.Label(window, text="Humidity:")
-humidity_string_label.grid(row=1, column=0)
-
-humidity_label = tk.Label(window, textvariable=tk_humidity)
-humidity_label.grid(row=1, column=1)
-
-countdown_string_label = tk.Label(window, text="The next update:")
-countdown_string_label.grid(row=2, column=0)
-
-countdown_label = tk.Label(window, textvariable=tk_countdown)
-countdown_label.grid(row=2, column=1)
+tk_logs = tk.StringVar(window)
+tk_errors = tk.StringVar(window)
 
 # Graph box
-
 frame_graph = tk.Frame(master=window)
-frame_graph.grid(row=0, column=2, rowspan=3, padx=10, pady=10)
+frame_graph.grid(row=0, column=1, rowspan=3, padx=1, pady=1)
 
+# Create the GUI elements and layout for each subframe
+# Subframe: Top Right (Graph)
 # Create the figure and axis for the interactive graph
-fig = Figure(figsize=(5, 5), dpi=100)
+
+graph_label = tk.Label(frame_top_right, text="Graph")
+graph_label.pack(fill="x", padx=1)
+
+fig = Figure(figsize=(5,4), dpi=100)
 a = fig.add_subplot(111)
 a.set_xlabel('Time')
 a.set_ylabel('Value')
 a.legend()
 
 # Embed the figure in the Tkinter window
-canvas = FigureCanvasTkAgg(fig, master=frame_graph)
+canvas = FigureCanvasTkAgg(fig, master=frame_top_right)
 canvas.draw()
 canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
 # Add the navigation toolbar for basic interaction
-toolbar = NavigationToolbar2Tk(canvas, frame_graph)
+toolbar = NavigationToolbar2Tk(canvas, frame_top_right)
 toolbar.update()
+toolbar.mode = "None"
+canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+# Subframe: Top Left (Information)
+# Labels and Entry widgets
+
+information_label = tk.Label(frame_top_left, text="Information")
+information_label.pack(fill="x", padx=1)
+
+temperature_label = tk.Label(frame_top_left, textvariable=tk_temperature, anchor="nw", bg="white")
+temperature_label.pack(fill="x")
+
+humidity_label = tk.Label(frame_top_left, textvariable=tk_humidity, anchor="nw", bg="white")
+humidity_label.pack(fill="x")
+
+countdown_label = tk.Label(frame_top_left, textvariable=tk_countdown, anchor="nw", bg="white")
+countdown_label.pack(fill="x")
+
+settings_button = tk.Button(frame_top_left, text ="Settings", command = on_settings, anchor="sw")
+settings_button.pack(side="bottom",fill="x")
 
 
+if args.debug:
+    tk_debug = tk.StringVar(window)
+    debug_label = tk.Label(frame_top_left, textvariable=tk_debug, anchor="sw", bg="white")
+    debug_label.pack(side="bottom",fill="x")
+
+
+# Subframe: Bottom Left (Logs)
+# Labels and Entry widgets
+logs_label = tk.Label(frame_bottom_left, text="Logs")
+logs_label.pack(fill="x")
+
+logs_logs_label = tk.Label(
+    frame_bottom_left,
+    textvariable=tk_logs,
+    bg="black",
+    fg="white",
+    height=10,
+    anchor="nw",
+)
+logs_logs_label.pack(fill="x")
+
+# Subframe: Bottom Right (Errors)
+# Labels and Entry widgets
+errors_label = tk.Label(frame_bottom_right, text="Errors")
+errors_label.pack(fill="x",padx=1)
+
+errors_errors_label = tk.Label(
+    frame_bottom_right,
+    textvariable=tk_errors,
+    bg="black",
+    fg="red",
+    height=10,
+    anchor="nw",
+)
+errors_errors_label.pack(fill="x", padx=1)
+
+window.protocol("WM_DELETE_WINDOW", on_close)
 
 
 update_graph()
-window.after(1000, update_temperature_humidity)       
-        
+window.after(1000, update_temperature_humidity)
 
-
-    
 window.mainloop()
