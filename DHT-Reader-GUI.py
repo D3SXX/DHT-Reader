@@ -1,4 +1,4 @@
-#DHT Reader v0.3 alpha 1 by D3SXX
+#DHT Reader v0.3 alpha 2 by D3SXX
 
 try:
     import os
@@ -19,7 +19,7 @@ try:
 except:
     raise SystemExit("Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter")
 
-version = "v0.3 alpha 1"
+version = "v0.3 alpha 2"
 
 # Reset array and add save any sentences
 def save_and_reset_array(array, sentences_to_save=1):
@@ -265,7 +265,6 @@ if not args.skip:
     flag = 2
     select_theme, temperature_unit, device, pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename = read_and_write_config(flag, select_theme, temperature_unit, device, pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename)
 
-
 # Initial the dht device, with data pin connected to:
 pin_value = getattr(board, "D" + str(pin))
 dhtDevice = device(pin_value, bool(allow_pulseio))
@@ -273,24 +272,119 @@ dhtDevice = device(pin_value, bool(allow_pulseio))
 old_delay_sec = delay_sec
 
 def on_settings():
-    
     global settings_window
+    global frame_right
+    global tk_settings_desc_2 
+    global device_1_button 
+    
+    def on_selection_changed(event):
+        global device
+        selected_item = option_var.get()
+        device = dht_convert(selected_item)
+        tk_device.set(f"Device: {selected_item}")
+        print(f"Selected item: {selected_item} device name: {dht_convert(device)}")
+    
+    def on_pin_entry_return(event):
+        global pin
+        pin = pin_entry_var.get()
+        tk_pin.set(f"Pin: {pin}")
+        print(f"Entered item: {pin_entry_var.get()} new pin: {pin}")
     
     def on_select(event):
+        
+        global device
+        global tk_device
+        global tk_pin
+        
         selected_index = listbox.curselection()
-        if selected_index:
+        
+        for widget in frame_right.winfo_children():
+            widget.pack_forget()
             
+        if selected_index:
             if selected_index[0] == 0:
-                tk_settings_info.set("Device settings")
-                tk_settings_desc.set("DHT devices that are supported by the program are:\nDHT11, DHT21, DHT22")
+                global option_var
+                global pin_entry_var
+                
+                tk_settings_info.set("Device and pin settings\n")
+                tk_settings_desc.set(f"DHT devices that are supported by the program are:")
+                tk_settings_desc_list.set("DHT11, DHT21, DHT22\n")
+                tk_settings_desc_2.set(f"Pins allow to read the dht device, in theory any pin should work")
+                
+                settings_information_label = tk.Label(frame_right, textvariable=tk_settings_info, anchor="n", bg="white")
+                settings_information_label.pack(fill="x")
+                
+                settings_description_label = tk.Label(frame_right, textvariable=tk_settings_desc, anchor="nw", bg="white", wraplength=400)
+                settings_description_label.pack(fill="x")
+                
+                settings_description_list_label = tk.Label(frame_right, textvariable=tk_settings_desc_list, anchor="n", bg="white")
+                settings_description_list_label.pack(fill="x")
+                
+                # Create a new frame to hold the OptionMenu widget
+                option_frame = tk.Frame(frame_right, bg="white")
+                option_frame.pack(fill="x")
+                
+                device_options = ["DHT11", "DHT21", "DHT22"]
+                option_var = tk.StringVar(option_frame)
+                print(f"Menu options: {device_options} current device: {dht_convert(device)}")
+                
+                if dht_convert(device) == "DHT11": # Set the default option (depends on the current device)
+                    option_var.set(device_options[0])
+                elif dht_convert(device) == "DHT21":
+                    option_var.set(device_options[1])  
+                elif dht_convert(device) == "DHT22":
+                    option_var.set(device_options[2])  
+                
+                device_label_var = tk.StringVar(option_frame, f"Current device: ")
+                device_label = tk.Label(option_frame, textvariable=device_label_var, bg="white")
+                device_label.pack(side="left")
+                      
+                option_menu = tk.OptionMenu(option_frame, option_var, *device_options, command=on_selection_changed)
+                option_menu.pack(fill="x")
+                
+                settings_nl_label = tk.Label(frame_right, textvariable=tk_settings_nl, anchor="n", bg="white")
+                settings_nl_label.pack(fill="x")
+                
+                settings_description_2_label = tk.Label(frame_right, textvariable=tk_settings_desc_2, anchor="nw", bg="white", wraplength=400)
+                settings_description_2_label.pack(fill="x")
+                
+                # Create a new frame to hold the Entry widget
+                entry_frame = tk.Frame(frame_right, bg="white")
+                entry_frame.pack(fill="x")
+                
+                print(f"Current pin: {pin}")
+                pin_label_var = tk.StringVar(entry_frame, f"Current pin: ")
+                pin_label = tk.Label(entry_frame, textvariable=pin_label_var, bg="white")
+                pin_label.pack(side="left")
+                
+                # Pin Entry
+                pin_entry_var = tk.StringVar(entry_frame)
+                pin_entry_var.set(pin)  # Set the default value to the current variable
+                pin_entry = tk.Entry(entry_frame, textvariable=pin_entry_var)
+                pin_entry.pack()
+                
+                # Bind the "Return" key event to the Entry widget
+                pin_entry.bind("<Return>", on_pin_entry_return)        
+                
             elif selected_index[0] == 1:
-                tk_settings_info.set("Pin settings")
-                tk_settings_desc.set("Connecting a DHT sensor to a Raspberry Pi via GPIO ports enables temperature and humidity monitoring. In theory all pins should work, but most common are:\n GPIO4, GPIO17, GPIO22, GPIO27")
+                tk_settings_info.set("Save & Reset data")
+                tk_settings_desc.set("You can select which data you want to save and in which formats")
+                
+                settings_information_label = tk.Label(frame_right, textvariable=tk_settings_info, anchor="n", bg="white")
+                settings_information_label.pack(fill="x")
+
+                settings_description_label = tk.Label(frame_right, textvariable=tk_settings_desc, anchor="nw", bg="white", wraplength=400)
+                settings_description_label.pack(fill="x")
+                
+                
+            elif selected_index[0] == 2:
+                tk_settings_info.set("Extra")
+                
+                
             selected_item = listbox.get(selected_index)
             if args.debug:
                 print(f"Selected item: {selected_item} {selected_index[0]}")
-    
-    
+
     # Create a new instance of Tk for the new window
     settings_window = tk.Tk()
     settings_window.title("Settings")
@@ -303,16 +397,17 @@ def on_settings():
     settings_width = settings_window.winfo_width()
     settings_height = settings_window.winfo_height()
 
-
+    tk_settings_nl = tk.StringVar(settings_window, "\n")
     tk_settings_info = tk.StringVar(settings_window)
     tk_settings_desc = tk.StringVar(settings_window)
+    tk_settings_desc_list = tk.StringVar(settings_window)
+    tk_settings_desc_2 = tk.StringVar(settings_window)
 
     # Define the layout using the grid geometry manager
     settings_window.grid_rowconfigure(0, weight=3)
     settings_window.grid_columnconfigure(0, weight=3, minsize=100)  # 30% width
     settings_window.grid_columnconfigure(1, weight=7)  # 70% width
     
-
     # Create four subframes for the grids
     frame_left = tk.Frame(master=settings_window, bg="white")
     frame_right = tk.Frame(master=settings_window, bg="white")
@@ -321,19 +416,12 @@ def on_settings():
     frame_left.grid(row=0, column=0, sticky="nsew")
     frame_right.grid(row=0, column=1,sticky="nsew", padx = 2, pady = 10)
 
-    settings_information_label = tk.Label(frame_right, textvariable=tk_settings_info, anchor="n", bg="white")
-    settings_information_label.pack(fill="x")
-
-    settings_description_label = tk.Label(frame_right, textvariable=tk_settings_desc, anchor="nw", bg="white", wraplength=400)
-    settings_description_label.pack(fill="x")
-    
-        
     # Listbox container
     listbox_container = tk.Frame(master=frame_left)
     listbox_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
     # Create a Listbox with some options
-    options = [f"Device: {dht_convert(device)}", f"Pin: {pin}        "]
+    options = [f"Device & Pin", f"Data Save & Reset", "Extra"]
     listbox = tk.Listbox(listbox_container, selectmode=tk.SINGLE)
     for option in options:
         listbox.insert(tk.END, option)
@@ -443,6 +531,9 @@ frame_bottom_left.grid(row=1, column=0, sticky="nsew")
 frame_bottom_right.grid(row=1, column=1, sticky="nsew")
 
 # Variables to store values in information box
+
+tk_device = tk.StringVar(window, f"Device: {dht_convert(device)}")
+tk_pin = tk.StringVar(window, f"Pin: {pin}")
 tk_temperature = tk.StringVar(window, "Temperature: ")
 tk_humidity = tk.StringVar(window, "Humidity: ")
 tk_countdown = tk.StringVar()
@@ -483,6 +574,12 @@ canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
 information_label = tk.Label(frame_top_left, text="Information")
 information_label.pack(fill="x", padx=1)
+
+device_label = tk.Label(frame_top_left, textvariable=tk_device, anchor="nw", bg="white")
+device_label.pack(fill="x")
+
+pin_label = tk.Label(frame_top_left, textvariable=tk_pin, anchor="nw", bg="white")
+pin_label.pack(fill="x")
 
 temperature_label = tk.Label(frame_top_left, textvariable=tk_temperature, anchor="nw", bg="white")
 temperature_label.pack(fill="x")
