@@ -1,4 +1,4 @@
-#DHT Reader v0.3 alpha 2 by D3SXX
+#DHT Reader v0.3 alpha 3 by D3SXX
 
 try:
     import os
@@ -19,7 +19,7 @@ try:
 except:
     raise SystemExit("Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter")
 
-version = "v0.3 alpha 2"
+version = "v0.3 alpha 3"
 
 # Reset array and add save any sentences
 def save_and_reset_array(array, sentences_to_save=1):
@@ -231,6 +231,15 @@ def write_to_txt(temperature, humidity, txt_filename):
     return [str(f"{txt_filename} ({txt_size} bytes) file was updated ")]
 
 
+def init_device(flag, device, pin):
+    global dhtDevice
+    if flag != 1:
+        dhtDevice.exit()
+    # Initial the dht device, with data pin connected to:
+    pin_value = getattr(board, "D" + str(pin))
+    dhtDevice = device(pin_value, bool(allow_pulseio))
+    print(f"Device {dht_convert(device)} with pin {pin} initialized")
+
 # Array for holding temperature and humidity
 temperature_hold = []
 humidity_hold = []
@@ -246,7 +255,7 @@ delay_sec = 5
 allow_pulseio = 1
 reset_data = 0
 device = "DHT11"
-pin = board.D4
+pin = 4
 select_theme = 0
 temperature_unit = "C"
 graph_environment = "Temperature"
@@ -265,9 +274,7 @@ if not args.skip:
     flag = 2
     select_theme, temperature_unit, device, pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename = read_and_write_config(flag, select_theme, temperature_unit, device, pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename)
 
-# Initial the dht device, with data pin connected to:
-pin_value = getattr(board, "D" + str(pin))
-dhtDevice = device(pin_value, bool(allow_pulseio))
+init_device(1, device, pin)
 
 old_delay_sec = delay_sec
 
@@ -279,17 +286,68 @@ def on_settings():
     
     def on_selection_changed(event):
         global device
+        global pin
+        global logs
         selected_item = option_var.get()
         device = dht_convert(selected_item)
         tk_device.set(f"Device: {selected_item}")
         print(f"Selected item: {selected_item} device name: {dht_convert(device)}")
+        logs += f"Device was changed to {dht_convert(device)}\n"
+        tk_logs.set(logs)
+        init_device(0, device, pin)
     
     def on_pin_entry_return(event):
+        global device
         global pin
+        global logs
         pin = pin_entry_var.get()
         tk_pin.set(f"Pin: {pin}")
         print(f"Entered item: {pin_entry_var.get()} new pin: {pin}")
+        logs += f"Pin was changed to {pin}\n"
+        tk_logs.set(logs)
+        init_device(0, device, pin)
     
+    def on_checkbox_change(option):
+        global logs
+        if option == 0:
+            global allowtxt
+            allowtxt = not bool(allowtxt)
+            print(f"option allowtxt change to {bool(allowtxt)}")
+            logs += f"Writing to a txt file is set to {bool(allowtxt)}\n"
+
+        elif option == 1:
+            global allowxl
+            allowxl = not bool(allowxl)
+            print(f"option allowxl change to {bool(allowxl)}")
+            logs += f"Writing to a Excel file is set to {bool(allowxl)}\n"
+        elif option == 2:
+            global allowimg
+            allowimg = not bool(allowimg)
+            print(f"option allowimg change to {bool(allowimg)}")
+            logs += f"Writing to an Image file is set to {bool(allowimg)}\n"
+        tk_logs.set(logs)  
+    
+    def on_filename_entry_return(option, value):
+        global logs
+        if option == 0:
+            global txt_filename
+            txt_filename = value.get()
+            print(f"New txt filename: {txt_filename}")
+            logs += f"Text filename was changed to {txt_filename}\n"
+            tk_logs.set(logs)
+        elif option == 1:
+            global excel_filename
+            excel_filename = value.get()
+            print(f"New Excel filename: {excel_filename}")
+            logs += f"Excel filename was changed to {excel_filename}\n"
+            tk_logs.set(logs)
+        elif option == 2:
+            global img_filename
+            img_filename = value.get()
+            print(f"New image filename: {img_filename}")
+            logs += f"Image filename was changed to {img_filename}\n"
+            tk_logs.set(logs)
+            
     def on_select(event):
         
         global device
@@ -309,7 +367,7 @@ def on_settings():
                 tk_settings_info.set("Device and pin settings\n")
                 tk_settings_desc.set(f"DHT devices that are supported by the program are:")
                 tk_settings_desc_list.set("DHT11, DHT21, DHT22\n")
-                tk_settings_desc_2.set(f"Pins allow to read the dht device, in theory any pin should work")
+                tk_settings_desc_2.set(f"Pins allow to read the dht device, in theory any pin should work\n")
                 
                 settings_information_label = tk.Label(frame_right, textvariable=tk_settings_info, anchor="n", bg="white")
                 settings_information_label.pack(fill="x")
@@ -340,12 +398,12 @@ def on_settings():
                 device_label.pack(side="left")
                       
                 option_menu = tk.OptionMenu(option_frame, option_var, *device_options, command=on_selection_changed)
-                option_menu.pack(fill="x")
+                option_menu.pack(fill="x", anchor="w")
                 
                 settings_nl_label = tk.Label(frame_right, textvariable=tk_settings_nl, anchor="n", bg="white")
                 settings_nl_label.pack(fill="x")
                 
-                settings_description_2_label = tk.Label(frame_right, textvariable=tk_settings_desc_2, anchor="nw", bg="white", wraplength=400)
+                settings_description_2_label = tk.Label(frame_right, textvariable=tk_settings_desc_2, anchor="w", bg="white", wraplength=400)
                 settings_description_2_label.pack(fill="x")
                 
                 # Create a new frame to hold the Entry widget
@@ -361,21 +419,105 @@ def on_settings():
                 pin_entry_var = tk.StringVar(entry_frame)
                 pin_entry_var.set(pin)  # Set the default value to the current variable
                 pin_entry = tk.Entry(entry_frame, textvariable=pin_entry_var)
-                pin_entry.pack()
+                pin_entry.pack(anchor="w")
                 
                 # Bind the "Return" key event to the Entry widget
                 pin_entry.bind("<Return>", on_pin_entry_return)        
                 
             elif selected_index[0] == 1:
-                tk_settings_info.set("Save & Reset data")
-                tk_settings_desc.set("You can select which data you want to save and in which formats")
+                global allowtxt
+                global allowxl
+                global allowimg
                 
+                tk_settings_info.set("Save and Reset data settings\n")
+                tk_settings_desc.set("You can select couple of options where the data will be saved")
+                tk_settings_desc_2.set("Change filenames")
                 settings_information_label = tk.Label(frame_right, textvariable=tk_settings_info, anchor="n", bg="white")
                 settings_information_label.pack(fill="x")
 
                 settings_description_label = tk.Label(frame_right, textvariable=tk_settings_desc, anchor="nw", bg="white", wraplength=400)
                 settings_description_label.pack(fill="x")
+
+                # Create a new frame to hold the checkbutton widgets
+                checkbutton_frame = tk.Frame(frame_right, bg="white")
+                checkbutton_frame.pack(fill="x", anchor="w")
+
+                checkbox_allowtxt_var = tk.BooleanVar(value=bool(allowtxt))
                 
+                print(f"allowtxt: {bool(allowtxt)}")
+                allowtxt_checkbox = tk.Checkbutton(checkbutton_frame, text="Write to txt file", variable=checkbox_allowtxt_var, command=lambda: on_checkbox_change(0), bg="white")
+                allowtxt_checkbox.pack(anchor="w")
+                if allowtxt:
+                    allowtxt_checkbox.select()
+                
+                checkbox_allowxl_var = tk.BooleanVar(value=bool(allowxl))
+                
+                print(f"allowxl: {bool(allowxl)}")
+                allowxl_checkbox = tk.Checkbutton(checkbutton_frame, text="Write to Excel file", variable=checkbox_allowxl_var, command=lambda: on_checkbox_change(1), bg="white")
+                allowxl_checkbox.pack(anchor="w")
+                if allowxl:
+                    allowxl_checkbox.select()
+                    
+                checkbox_allowimg_var = tk.BooleanVar(value=bool(allowimg))
+                
+                print(f"allowimg: {bool(allowimg)}")
+                allowimg_checkbox = tk.Checkbutton(checkbutton_frame, text="Create an Image file", variable=checkbox_allowimg_var, command=lambda: on_checkbox_change(2), bg="white")
+                allowimg_checkbox.pack(anchor="w")
+                if allowimg:
+                    allowimg_checkbox.select()
+                
+                settings_description_2_label = tk.Label(frame_right, textvariable=tk_settings_desc_2, anchor="w", bg="white", wraplength=400)
+                settings_description_2_label.pack(fill="x")
+                
+                # Create a new frame to hold the Entry widgets
+                entry_frame = tk.Frame(frame_right, bg="white")
+                entry_frame.pack(fill="x")
+                
+                print(f"txt_filename: {txt_filename}")
+                print(f"excel_filename: {excel_filename}")
+                print(f"img_filename: {img_filename}")
+                txt_filename_label_var = tk.StringVar(entry_frame, "Current txt filename: ")
+                excel_filename_label_var = tk.StringVar(entry_frame, "Current Excel filename: ")
+                img_filename_label_var = tk.StringVar(entry_frame, "Current Image filename: ")
+                
+                # Change filename for txt
+                txt_filename_label_var = tk.Label(entry_frame, textvariable=txt_filename_label_var, bg="white")
+                txt_filename_label_var.pack(anchor="w")
+                
+                # txt Entry
+                txt_filename_entry_var = tk.StringVar(entry_frame)
+                txt_filename_entry_var.set(txt_filename)  # Set the default value to the current variable
+                txt_filename_entry = tk.Entry(entry_frame, textvariable=txt_filename_entry_var)
+                txt_filename_entry.pack(anchor="w")
+                
+                # Bind the "Return" key event to the Entry widget
+                txt_filename_entry.bind("<Return>", lambda event: on_filename_entry_return(0, txt_filename_entry_var))   
+                
+                # Change filename for Excel
+                excel_filename_label_var = tk.Label(entry_frame, textvariable=excel_filename_label_var, bg="white")
+                excel_filename_label_var.pack(anchor="w")
+                
+                # excel Entry
+                excel_filename_entry_var = tk.StringVar(entry_frame)
+                excel_filename_entry_var.set(excel_filename)  # Set the default value to the current variable
+                excel_filename_entry = tk.Entry(entry_frame, textvariable=excel_filename_entry_var)
+                excel_filename_entry.pack(anchor="w")
+                
+                # Bind the "Return" key event to the Entry widget
+                excel_filename_entry.bind("<Return>", lambda event: on_filename_entry_return(1, excel_filename_entry_var))
+                
+                # Change filename for Image
+                img_filename_label_var = tk.Label(entry_frame, textvariable=img_filename_label_var, bg="white")
+                img_filename_label_var.pack(anchor="w")
+                
+                # excel Entry
+                img_filename_entry_var = tk.StringVar(entry_frame)
+                img_filename_entry_var.set(img_filename)  # Set the default value to the current variable
+                img_filename_entry = tk.Entry(entry_frame, textvariable=img_filename_entry_var)
+                img_filename_entry.pack(anchor="w")
+                
+                # Bind the "Return" key event to the Entry widget
+                img_filename_entry.bind("<Return>", lambda event: on_filename_entry_return(2, img_filename_entry_var))    
                 
             elif selected_index[0] == 2:
                 tk_settings_info.set("Extra")
@@ -391,7 +533,7 @@ def on_settings():
 
 
     # Set the minimum size for the window (width, height)
-    settings_window.minsize(600, 300)
+    settings_window.minsize(600, 350)
     settings_window.maxsize(800, 600)
 
     settings_width = settings_window.winfo_width()
@@ -508,6 +650,10 @@ def update_graph():
     a.legend()
     canvas.draw()
     
+def reset_values():
+    temperature_hold.clear()
+    humidity_hold.clear()
+    
 window = tk.Tk()
 window.title("DHT Reader " + version)
 
@@ -590,8 +736,15 @@ humidity_label.pack(fill="x")
 countdown_label = tk.Label(frame_top_left, textvariable=tk_countdown, anchor="nw", bg="white")
 countdown_label.pack(fill="x")
 
-settings_button = tk.Button(frame_top_left, text ="Settings", command = on_settings, anchor="sw")
-settings_button.pack(side="bottom",fill="x")
+# Create a new frame to hold the button widgets
+button_frame = tk.Frame(frame_top_left, bg="white")
+button_frame.pack(side="bottom",fill="x")
+
+settings_button = tk.Button(button_frame, text ="Reset graph", command = reset_values)
+settings_button.pack(fill="x",side="left")
+
+settings_button = tk.Button(button_frame, text ="Settings", command = on_settings)
+settings_button.pack(fill="x")
 
 
 if args.debug:
@@ -626,7 +779,8 @@ errors_errors_label = tk.Label(
     bg="black",
     fg="red",
     height=10,
-    anchor="nw",
+    anchor="nw"
+    
 )
 errors_errors_label.pack(fill="x", padx=1)
 
