@@ -1,4 +1,4 @@
-#DHT Reader v0.3 alpha 3 by D3SXX
+#DHT Reader v0.3 alpha 4 by D3SXX
 
 try:
     import os
@@ -19,7 +19,7 @@ try:
 except:
     raise SystemExit("Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter")
 
-version = "v0.3 alpha 3"
+version = "v0.3 alpha 4"
 
 # Reset array and add save any sentences
 def save_and_reset_array(array, sentences_to_save=1):
@@ -170,6 +170,7 @@ def write_to_xl(temperature, humidity,excel_filename, img_filename, flag):
         plt.savefig(img_filename, dpi=300, bbox_inches='tight')
         full_time = time.time() - start_time
         img_size = os.path.getsize(img_filename)
+        print(f"An image {img_filename} ({img_size} bytes) was created in {full_time:.2f} seconds")
         return_list.append(f"An image {img_filename} ({img_size} bytes) was created in {full_time:.2f} seconds")
         if flag == 2:
             return return_list
@@ -209,6 +210,7 @@ def write_to_xl(temperature, humidity,excel_filename, img_filename, flag):
     # Close the workbook
     workbook.close()
     xl_size = os.path.getsize(excel_filename)
+    print(f"An Excel file {excel_filename} ({xl_size} bytes) with {a} entries was created")
     return_list.append(f"An Excel file {excel_filename} ({xl_size} bytes) with {a} entries was created")
     
     return return_list 
@@ -227,22 +229,40 @@ def write_to_txt(temperature, humidity, txt_filename):
         # Write this structure to a file
         f.write(entry)
     txt_size = os.path.getsize(txt_filename)
-    
+    print(f"{txt_filename} ({txt_size} bytes) file was updated ")
     return [str(f"{txt_filename} ({txt_size} bytes) file was updated ")]
 
 
-def init_device(flag, device, pin):
+def init_device(flag, device, pin, allow_pulseio):
     global dhtDevice
     if flag != 1:
         dhtDevice.exit()
     # Initial the dht device, with data pin connected to:
     pin_value = getattr(board, "D" + str(pin))
     dhtDevice = device(pin_value, bool(allow_pulseio))
-    print(f"Device {dht_convert(device)} with pin {pin} initialized")
+    print(f"Device {dht_convert(device)} with pin {pin} initialized\nPulseio is set to {bool(allow_pulseio)}")
 
+def change_theme(select):
+    global background_main, background_errors_logs, background_title, foreground_main, foreground_logs, foreground_errors
+    
+    if select == 0:
+        background_main = "white"
+        background_errors_logs = "black"
+        background_title = "lightgray"
+        foreground_main = "black"
+        foreground_logs = "white"
+        foreground_errors = "red"
+    elif select == 1:
+        background_main = "black"
+        background_errors_logs = "black"
+        background_title = "gray"
+        foreground_main = "white"
+        foreground_logs = "white"
+        foreground_errors = "red"
 # Array for holding temperature and humidity
 temperature_hold = []
 humidity_hold = []
+info_xl = []
 
 logs = ""
 errors = ""
@@ -260,6 +280,8 @@ select_theme = 0
 temperature_unit = "C"
 graph_environment = "Temperature"
 
+graph_show = "Both"
+
 # Default filenames
 txt_filename = "T_and_H.txt"
 excel_filename = "T_and_H.xlsx"
@@ -274,10 +296,12 @@ if not args.skip:
     flag = 2
     select_theme, temperature_unit, device, pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename = read_and_write_config(flag, select_theme, temperature_unit, device, pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename)
 
-init_device(1, device, pin)
+init_device(1, device, pin, allow_pulseio)
+change_theme(select_theme)
 
 old_delay_sec = delay_sec
 
+        
 def on_settings():
     global settings_window
     global frame_right
@@ -294,7 +318,7 @@ def on_settings():
         print(f"Selected item: {selected_item} device name: {dht_convert(device)}")
         logs += f"Device was changed to {dht_convert(device)}\n"
         tk_logs.set(logs)
-        init_device(0, device, pin)
+        init_device(0, device, pin, allow_pulseio)
     
     def on_pin_entry_return(event):
         global device
@@ -305,26 +329,32 @@ def on_settings():
         print(f"Entered item: {pin_entry_var.get()} new pin: {pin}")
         logs += f"Pin was changed to {pin}\n"
         tk_logs.set(logs)
-        init_device(0, device, pin)
+        init_device(0, device, pin, allow_pulseio)
     
     def on_checkbox_change(option):
         global logs
         if option == 0:
             global allowtxt
             allowtxt = not bool(allowtxt)
-            print(f"option allowtxt change to {bool(allowtxt)}")
+            print(f"option allowtxt was changed to {bool(allowtxt)}")
             logs += f"Writing to a txt file is set to {bool(allowtxt)}\n"
 
         elif option == 1:
             global allowxl
             allowxl = not bool(allowxl)
-            print(f"option allowxl change to {bool(allowxl)}")
+            print(f"option allowxl changed to {bool(allowxl)}")
             logs += f"Writing to a Excel file is set to {bool(allowxl)}\n"
         elif option == 2:
             global allowimg
             allowimg = not bool(allowimg)
-            print(f"option allowimg change to {bool(allowimg)}")
+            print(f"option allowimg was changed to {bool(allowimg)}")
             logs += f"Writing to an Image file is set to {bool(allowimg)}\n"
+        elif option == 3:
+            global allow_pulseio
+            allow_pulseio = not bool(allow_pulseio)
+            print(f"option allow_pulseio was changed to {bool(allow_pulseio)}")
+            logs += f"Using Pulseio is set to {bool(allow_pulseio)}\n"
+            init_device(0, device, pin, allow_pulseio)
         tk_logs.set(logs)  
     
     def on_filename_entry_return(option, value):
@@ -347,7 +377,65 @@ def on_settings():
             print(f"New image filename: {img_filename}")
             logs += f"Image filename was changed to {img_filename}\n"
             tk_logs.set(logs)
+    
+    def change_temperature_unit(unit):
+        global temperature_unit
+        global logs
+        if unit == "C":
+            c_unit_button.config(relief=tk.SUNKEN)
+            f_unit_button.config(relief=tk.RAISED)
+        elif unit == "F":
+            c_unit_button.config(relief=tk.RAISED)
+            f_unit_button.config(relief=tk.SUNKEN)
+        temperature_unit = unit
+        print(f"temperature_unit: {unit}")
+        logs += f"Temperature unit was changed to °{unit}\n"
+        tk_logs.set(logs)
             
+    def change_graph(option):
+        global graph_show
+        global logs        
+        if option == "T":
+            graph_show = "Temperature"
+            T_graph_change_button.config(relief=tk.SUNKEN)
+            T_H_graph_change_button.config(relief=tk.RAISED)
+            H_graph_change_button.config(relief=tk.RAISED)
+            logs += f"Graph now shows only {graph_show}\n"
+            tk_logs.set(logs)
+        elif option == "H":
+            graph_show = "Humidity"
+            T_graph_change_button.config(relief=tk.RAISED)
+            T_H_graph_change_button.config(relief=tk.RAISED)
+            H_graph_change_button.config(relief=tk.SUNKEN)
+            logs += f"Graph now shows only {graph_show}\n"
+            tk_logs.set(logs)
+        else:
+            graph_show = "Both"
+            logs += f"Graph now shows both temperature and humidity\n"
+            T_graph_change_button.config(relief=tk.RAISED)
+            T_H_graph_change_button.config(relief=tk.SUNKEN)
+            H_graph_change_button.config(relief=tk.RAISED)
+            tk_logs.set(logs)
+        print(f"graph_show = {graph_show}")
+
+    def on_change_delay(value, flag = 0):
+        global old_delay_sec
+        global logs
+        if flag == 1:
+            value = value.get()
+        if value > 0:
+            old_delay_sec = value
+            delay_entry_var.set(old_delay_sec)
+            delay_decrease_button.config(relief=tk.RAISED)
+            print(f"delay_sec = {old_delay_sec}")
+            logs += f"Delay was changes to {old_delay_sec} second(s)\n"
+            tk_logs.set(logs)
+            if value == 1:
+                delay_decrease_button.config(relief=tk.SUNKEN)
+        else:
+            delay_decrease_button.config(relief=tk.SUNKEN)
+            print(f"delay value is too small to decrease --> {old_delay_sec}")
+
     def on_select(event):
         
         global device
@@ -363,6 +451,7 @@ def on_settings():
             if selected_index[0] == 0:
                 global option_var
                 global pin_entry_var
+                global checkbox_allowpulseio_var
                 
                 tk_settings_info.set("Device and pin settings\n")
                 tk_settings_desc.set(f"DHT devices that are supported by the program are:")
@@ -423,6 +512,16 @@ def on_settings():
                 
                 # Bind the "Return" key event to the Entry widget
                 pin_entry.bind("<Return>", on_pin_entry_return)        
+                
+                checkbox_allowpulseio_var = tk.BooleanVar(value=bool(allow_pulseio))
+                
+                print(f"pulseio: {bool(allow_pulseio)}")
+                allowpulseio_checkbox = tk.Checkbutton(frame_right, text="Enable Pulseio", variable=checkbox_allowpulseio_var, command=lambda: on_checkbox_change(3), bg="white")
+                allowpulseio_checkbox.pack(anchor="w")
+                if allow_pulseio:
+                    allowpulseio_checkbox.select()
+                
+                
                 
             elif selected_index[0] == 1:
                 global allowtxt
@@ -520,13 +619,95 @@ def on_settings():
                 img_filename_entry.bind("<Return>", lambda event: on_filename_entry_return(2, img_filename_entry_var))    
                 
             elif selected_index[0] == 2:
-                tk_settings_info.set("Extra")
+                global c_unit_button
+                global f_unit_button
+                global T_graph_change_button
+                global T_H_graph_change_button
+                global H_graph_change_button
+                global delay_entry_var
+                global delay_decrease_button
                 
+                tk_settings_info.set("Extra\n")
+                tk_settings_desc.set("Change temperature unit")
+                settings_information_label = tk.Label(frame_right, textvariable=tk_settings_info, anchor="n", bg="white")
+                settings_information_label.pack(fill="x")
+
+                settings_description_label = tk.Label(frame_right, textvariable=tk_settings_desc, anchor="nw", bg="white", wraplength=400)
+                settings_description_label.pack(fill="x")
+                
+                # Change temperature unit
+                
+                # Create a new frame to hold the temperature unit change widgets
+                temperature_unit_frame = tk.Frame(frame_right, bg="white")
+                temperature_unit_frame.pack(fill="x")
+                
+                temperature_unit_label = tk.Label(temperature_unit_frame, text="Unit:", bg="white")
+                temperature_unit_label.pack(side="left")
+                
+                c_unit_button = tk.Button(temperature_unit_frame, text ="°C", command = lambda: change_temperature_unit("C"))
+                c_unit_button.pack(side="left")
+                f_unit_button = tk.Button(temperature_unit_frame, text ="°F", command = lambda: change_temperature_unit("F"))
+                f_unit_button.pack(side="left")
+                
+                # Set the initial relief of the buttons based on the current temperature_unit
+                c_unit_button.config(relief=tk.SUNKEN if temperature_unit == "C" else tk.RAISED)
+                f_unit_button.config(relief=tk.SUNKEN if temperature_unit == "F" else tk.RAISED)
+                
+                settings_description_2_label = tk.Label(frame_right, text="Change graph", anchor="nw", bg="white", wraplength=400)
+                settings_description_2_label.pack(fill="x")
+                
+                # Create a new frame to hold the graph change widgets
+                graph_change_frame = tk.Frame(frame_right, bg="white")
+                graph_change_frame.pack(fill="x")
+                
+                T_graph_change_button = tk.Button(graph_change_frame, text ="Only Temperature", command = lambda: change_graph("T"))
+                T_graph_change_button.pack(side="left")
+                T_H_graph_change_button = tk.Button(graph_change_frame, text ="Both", command = lambda: change_graph("Both"))
+                T_H_graph_change_button.pack(side="left")
+                H_graph_change_button = tk.Button(graph_change_frame, text ="Only Humidity", command = lambda: change_graph("H"))
+                H_graph_change_button.pack(side="left")
+                
+                # Set the initial relief of the buttons based on the current graph_show
+                T_graph_change_button.config(relief=tk.SUNKEN if graph_show == "Temperature" else tk.RAISED)
+                T_H_graph_change_button.config(relief=tk.SUNKEN if graph_show == "Both" else tk.RAISED)
+                H_graph_change_button.config(relief=tk.SUNKEN if graph_show == "Humidity" else tk.RAISED)
+                
+                settings_delay_label = tk.Label(frame_right, text="Change delay", anchor="nw", bg="white", wraplength=400)
+                settings_delay_label.pack(fill="x")
+                
+                # Create a new frame to hold the delay change widgets
+                delay_change_frame = tk.Frame(frame_right, bg="white")
+                delay_change_frame.pack(fill="x")
+                
+                delay_decrease_button = tk.Button(delay_change_frame, text ="-", command = lambda: on_change_delay(old_delay_sec-1))
+                delay_decrease_button.pack(side="left")
+                
+                # delay Entry
+                delay_entry_var = tk.IntVar(delay_change_frame)
+                delay_entry_var.set(old_delay_sec)  # Set the default value to the current variable
+                delay_change_entry = tk.Entry(delay_change_frame, textvariable=delay_entry_var)
+                delay_change_entry.pack(side="left")
+                
+                # Bind the "Return" key event to the Entry widget
+                delay_change_entry.bind("<Return>", lambda event: on_change_delay(delay_entry_var,1))   
+                
+                delay_increase_button = tk.Button(delay_change_frame, text ="+", command = lambda: on_change_delay(old_delay_sec+1))
+                delay_increase_button.pack(side="left")
+                
+                # Set the initial relief of the buttons based on the current graph_show
+                delay_decrease_button.config(relief=tk.SUNKEN if old_delay_sec <= 1 else tk.RAISED)
                 
             selected_item = listbox.get(selected_index)
             if args.debug:
                 print(f"Selected item: {selected_item} {selected_index[0]}")
 
+    def on_close_settings():
+        global logs
+        settings_window.destroy()
+        read_and_write_config(1, select_theme, temperature_unit, device,int(pin), int(allowtxt), int(allowxl), int(allowimg), int(delay_sec), int(allow_pulseio), reset_data, graph_environment, txt_filename, excel_filename, img_filename)
+        print("Config updated")
+        logs += f"Config file was updated\n"
+        tk_logs.set(logs)
     # Create a new instance of Tk for the new window
     settings_window = tk.Tk()
     settings_window.title("Settings")
@@ -544,6 +725,7 @@ def on_settings():
     tk_settings_desc = tk.StringVar(settings_window)
     tk_settings_desc_list = tk.StringVar(settings_window)
     tk_settings_desc_2 = tk.StringVar(settings_window)
+
 
     # Define the layout using the grid geometry manager
     settings_window.grid_rowconfigure(0, weight=3)
@@ -574,6 +756,8 @@ def on_settings():
     # Pack the Listbox to display it
     listbox.pack(padx=5, pady=10, fill=tk.BOTH, expand=True)
     
+    settings_window.protocol("WM_DELETE_WINDOW", on_close_settings)
+    
     # Start the event loop for the new window
     settings_window.mainloop()
 
@@ -592,6 +776,9 @@ def update_temperature_humidity():
     global logs
     global errors
     global graph_width
+    global temperature
+    global humidity
+    
     try:
         if delay_sec == old_delay_sec:
             humidity, temperature = None, None
@@ -609,10 +796,6 @@ def update_temperature_humidity():
                     tk_errors.set(errors)
                     break
 
-            # Update tk values
-            tk_temperature.set(f"Temperature: {temperature}")
-            tk_humidity.set(f"Humidity: {humidity}")
-
             if temperature is not None:
                 if temperature_unit == "F":
                     temperature = int(1.8 * temperature + 32)
@@ -622,6 +805,10 @@ def update_temperature_humidity():
             end_time = time.time()
             time_took = end_time - start_time
 
+        # Update tk values
+        tk_temperature.set(f"Temperature: {temperature} °{temperature_unit}")
+        tk_humidity.set(f"Humidity: {humidity} %")
+        
         # Update the countdown variable
         tk_countdown.set(f"The next update: {delay_sec} seconds")
         delay_sec -= 1  # Decrement the delay
@@ -632,6 +819,21 @@ def update_temperature_humidity():
         else:
             tk_countdown.set(f"The next update: 0 seconds")  # Set countdown to 0 when the delay is complete
             delay_sec = old_delay_sec
+            if not temperature == None:
+                if allowtxt == 1:
+                    info_xl.extend(write_to_txt(temperature,humidity,txt_filename))
+                if allowxl == 1 or allowimg == 1:
+                # flag == 1 -> allow only xl, flag == 2 allow only image, flag == 3 allow both
+                    flag = 0
+                    if allowxl == 1 and allowimg == 1:
+                        flag = 3
+                    elif allowxl == 1 and allowimg == 0:
+                        flag = 1
+                    else:
+                        flag = 2
+                    info_xl.extend(write_to_xl(temperature,humidity,excel_filename,img_filename,flag))
+                
+            
             window.after(1000, update_temperature_humidity)
         if args.debug:
             tk_debug.set(f"Debug {window.winfo_width()}x{window.winfo_height()}")
@@ -643,8 +845,13 @@ def update_temperature_humidity():
 
 def update_graph():
     a.clear()
-    a.plot(temperature_hold, label='Temperature')
-    a.plot(humidity_hold, label='Humidity')
+    if graph_show == "Temperature":
+        a.plot(temperature_hold, label='Temperature')
+    elif graph_show == "Humidity":
+        a.plot(humidity_hold, label='Humidity')
+    else:
+        a.plot(temperature_hold, label='Temperature')
+        a.plot(humidity_hold, label='Humidity')
     a.set_xlabel('Time')
     a.set_ylabel('Value')
     a.legend()
@@ -665,7 +872,7 @@ window.grid_rowconfigure(0, weight=1)
 window.grid_columnconfigure(0, weight=1)
 
 # Create four subframes for the grids
-frame_top_left = tk.Frame(master=window, bg="white")
+frame_top_left = tk.Frame(master=window, bg=background_main)
 frame_top_right = tk.Frame(master=window, bg="white")
 frame_bottom_left = tk.Frame(master=window, bg="white")
 frame_bottom_right = tk.Frame(master=window, bg="white")
@@ -695,7 +902,7 @@ frame_graph.grid(row=0, column=1, rowspan=3, padx=1, pady=1)
 # Subframe: Top Right (Graph)
 # Create the figure and axis for the interactive graph
 
-graph_label = tk.Label(frame_top_right, text="Graph")
+graph_label = tk.Label(frame_top_right, text="Graph", bg=background_title, fg=foreground_main)
 graph_label.pack(fill="x", padx=1)
 
 fig = Figure(figsize=(5,4), dpi=100)
@@ -718,22 +925,22 @@ canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 # Subframe: Top Left (Information)
 # Labels and Entry widgets
 
-information_label = tk.Label(frame_top_left, text="Information")
+information_label = tk.Label(frame_top_left, text="Information", bg=background_title, fg=foreground_main)
 information_label.pack(fill="x", padx=1)
 
-device_label = tk.Label(frame_top_left, textvariable=tk_device, anchor="nw", bg="white")
+device_label = tk.Label(frame_top_left, textvariable=tk_device, anchor="nw", bg=background_main, fg=foreground_main)
 device_label.pack(fill="x")
 
-pin_label = tk.Label(frame_top_left, textvariable=tk_pin, anchor="nw", bg="white")
+pin_label = tk.Label(frame_top_left, textvariable=tk_pin, anchor="nw", bg=background_main,fg=foreground_main)
 pin_label.pack(fill="x")
 
-temperature_label = tk.Label(frame_top_left, textvariable=tk_temperature, anchor="nw", bg="white")
+temperature_label = tk.Label(frame_top_left, textvariable=tk_temperature, anchor="nw", bg=background_main,fg=foreground_main)
 temperature_label.pack(fill="x")
 
-humidity_label = tk.Label(frame_top_left, textvariable=tk_humidity, anchor="nw", bg="white")
+humidity_label = tk.Label(frame_top_left, textvariable=tk_humidity, anchor="nw", bg=background_main,fg=foreground_main)
 humidity_label.pack(fill="x")
 
-countdown_label = tk.Label(frame_top_left, textvariable=tk_countdown, anchor="nw", bg="white")
+countdown_label = tk.Label(frame_top_left, textvariable=tk_countdown, anchor="nw", bg=background_main,fg=foreground_main)
 countdown_label.pack(fill="x")
 
 # Create a new frame to hold the button widgets
@@ -749,19 +956,19 @@ settings_button.pack(fill="x")
 
 if args.debug:
     tk_debug = tk.StringVar(window)
-    debug_label = tk.Label(frame_top_left, textvariable=tk_debug, anchor="sw", bg="white")
+    debug_label = tk.Label(frame_top_left, textvariable=tk_debug, anchor="sw", bg=background_main)
     debug_label.pack(side="bottom",fill="x")
 
 
 # Subframe: Bottom Left (Logs)
 # Labels and Entry widgets
-logs_label = tk.Label(frame_bottom_left, text="Logs")
+logs_label = tk.Label(frame_bottom_left, text="Logs", bg=background_title, fg=foreground_main)
 logs_label.pack(fill="x")
 
 logs_logs_label = tk.Label(
     frame_bottom_left,
     textvariable=tk_logs,
-    bg="black",
+    bg=background_errors_logs,
     fg="white",
     height=10,
     anchor="nw",
@@ -770,13 +977,13 @@ logs_logs_label.pack(fill="x")
 
 # Subframe: Bottom Right (Errors)
 # Labels and Entry widgets
-errors_label = tk.Label(frame_bottom_right, text="Errors")
+errors_label = tk.Label(frame_bottom_right, text="Errors", bg=background_title, fg=foreground_main)
 errors_label.pack(fill="x",padx=1)
 
 errors_errors_label = tk.Label(
     frame_bottom_right,
     textvariable=tk_errors,
-    bg="black",
+    bg=background_errors_logs,
     fg="red",
     height=10,
     anchor="nw"
