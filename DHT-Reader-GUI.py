@@ -1,4 +1,4 @@
-#DHT Reader v0.3 alpha 4 by D3SXX
+#DHT Reader v0.3 alpha 5 by D3SXX
 
 try:
     import os
@@ -19,7 +19,7 @@ try:
 except:
     raise SystemExit("Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter")
 
-version = "v0.3 alpha 4"
+version = "v0.3 alpha 5"
 
 # Reset array and add save any sentences
 def save_and_reset_array(array, sentences_to_save=1):
@@ -232,7 +232,6 @@ def write_to_txt(temperature, humidity, txt_filename):
     print(f"{txt_filename} ({txt_size} bytes) file was updated ")
     return [str(f"{txt_filename} ({txt_size} bytes) file was updated ")]
 
-
 def init_device(flag, device, pin, allow_pulseio):
     global dhtDevice
     if flag != 1:
@@ -247,10 +246,10 @@ def change_theme(select):
     
     if select == 0:
         background_main = "white"
-        background_errors_logs = "black"
+        background_errors_logs = "white"
         background_title = "lightgray"
         foreground_main = "black"
-        foreground_logs = "white"
+        foreground_logs = "black"
         foreground_errors = "red"
     elif select == 1:
         background_main = "black"
@@ -259,13 +258,22 @@ def change_theme(select):
         foreground_main = "white"
         foreground_logs = "white"
         foreground_errors = "red"
+
+def insert_log_error(flag, log_msg = "", error_msg = ""):
+    # flag == 1 --> add log only, flag == 2 --> add error only, flag == 3 --> both
+    if flag == 1 or flag == 3:
+        logs_listbox.insert(tk.END, log_msg)
+        if args.debug:
+            print(log_msg)
+    if flag == 2 or flag == 3:
+        errors_listbox.insert(tk.END, error_msg)
+        if args.debug:
+            print(error_msg)
+        
 # Array for holding temperature and humidity
 temperature_hold = []
 humidity_hold = []
 info_xl = []
-
-logs = ""
-errors = ""
 
 # Default values
 allowtxt = 0
@@ -311,76 +319,59 @@ def on_settings():
     def on_selection_changed(event):
         global device
         global pin
-        global logs
         selected_item = option_var.get()
         device = dht_convert(selected_item)
         tk_device.set(f"Device: {selected_item}")
-        print(f"Selected item: {selected_item} device name: {dht_convert(device)}")
-        logs += f"Device was changed to {dht_convert(device)}\n"
-        tk_logs.set(logs)
+        insert_log_error(1,f"Device was changed to {dht_convert(device)}")
         init_device(0, device, pin, allow_pulseio)
     
     def on_pin_entry_return(event):
         global device
         global pin
-        global logs
         pin = pin_entry_var.get()
         tk_pin.set(f"Pin: {pin}")
-        print(f"Entered item: {pin_entry_var.get()} new pin: {pin}")
-        logs += f"Pin was changed to {pin}\n"
-        tk_logs.set(logs)
+        insert_log_error(1,f"Pin was changed to {pin}")
         init_device(0, device, pin, allow_pulseio)
     
     def on_checkbox_change(option):
-        global logs
         if option == 0:
             global allowtxt
             allowtxt = not bool(allowtxt)
-            print(f"option allowtxt was changed to {bool(allowtxt)}")
-            logs += f"Writing to a txt file is set to {bool(allowtxt)}\n"
+            insert_log_error(1,f"Writing to a txt file is set to {bool(allowtxt)}")
 
         elif option == 1:
             global allowxl
             allowxl = not bool(allowxl)
-            print(f"option allowxl changed to {bool(allowxl)}")
-            logs += f"Writing to a Excel file is set to {bool(allowxl)}\n"
+            insert_log_error(1,f"Writing to a Excel file is set to {bool(allowxl)}")
         elif option == 2:
             global allowimg
             allowimg = not bool(allowimg)
-            print(f"option allowimg was changed to {bool(allowimg)}")
-            logs += f"Writing to an Image file is set to {bool(allowimg)}\n"
+            insert_log_error(1,f"Writing to an Image file is set to {bool(allowimg)}")
         elif option == 3:
             global allow_pulseio
             allow_pulseio = not bool(allow_pulseio)
-            print(f"option allow_pulseio was changed to {bool(allow_pulseio)}")
-            logs += f"Using Pulseio is set to {bool(allow_pulseio)}\n"
-            init_device(0, device, pin, allow_pulseio)
-        tk_logs.set(logs)  
+            insert_log_error(1,f"Using Pulseio is set to {bool(allow_pulseio)}")
+            init_device(0, device, pin, allow_pulseio) 
     
     def on_filename_entry_return(option, value):
-        global logs
         if option == 0:
             global txt_filename
             txt_filename = value.get()
             print(f"New txt filename: {txt_filename}")
-            logs += f"Text filename was changed to {txt_filename}\n"
-            tk_logs.set(logs)
+            insert_log_error(1,f"Text filename was changed to {txt_filename}")
         elif option == 1:
             global excel_filename
             excel_filename = value.get()
             print(f"New Excel filename: {excel_filename}")
-            logs += f"Excel filename was changed to {excel_filename}\n"
-            tk_logs.set(logs)
+            insert_log_error(1,f"Excel filename was changed to {excel_filename}")
         elif option == 2:
             global img_filename
             img_filename = value.get()
             print(f"New image filename: {img_filename}")
-            logs += f"Image filename was changed to {img_filename}\n"
-            tk_logs.set(logs)
+            insert_log_error(1,f"Image filename was changed to {img_filename}")
     
     def change_temperature_unit(unit):
         global temperature_unit
-        global logs
         if unit == "C":
             c_unit_button.config(relief=tk.SUNKEN)
             f_unit_button.config(relief=tk.RAISED)
@@ -388,48 +379,38 @@ def on_settings():
             c_unit_button.config(relief=tk.RAISED)
             f_unit_button.config(relief=tk.SUNKEN)
         temperature_unit = unit
-        print(f"temperature_unit: {unit}")
-        logs += f"Temperature unit was changed to °{unit}\n"
-        tk_logs.set(logs)
+        insert_log_error(1,f"Temperature unit was changed to °{unit}")
             
     def change_graph(option):
-        global graph_show
-        global logs        
+        global graph_show 
         if option == "T":
             graph_show = "Temperature"
             T_graph_change_button.config(relief=tk.SUNKEN)
             T_H_graph_change_button.config(relief=tk.RAISED)
             H_graph_change_button.config(relief=tk.RAISED)
-            logs += f"Graph now shows only {graph_show}\n"
-            tk_logs.set(logs)
+            insert_log_error(1,f"Graph now shows only {graph_show}")
         elif option == "H":
             graph_show = "Humidity"
             T_graph_change_button.config(relief=tk.RAISED)
             T_H_graph_change_button.config(relief=tk.RAISED)
             H_graph_change_button.config(relief=tk.SUNKEN)
-            logs += f"Graph now shows only {graph_show}\n"
-            tk_logs.set(logs)
+            insert_log_error(1,f"Graph now shows only {graph_show}")
         else:
             graph_show = "Both"
-            logs += f"Graph now shows both temperature and humidity\n"
             T_graph_change_button.config(relief=tk.RAISED)
             T_H_graph_change_button.config(relief=tk.SUNKEN)
             H_graph_change_button.config(relief=tk.RAISED)
-            tk_logs.set(logs)
-        print(f"graph_show = {graph_show}")
+            insert_log_error(1,f"Graph now shows both temperature and humidity")
 
     def on_change_delay(value, flag = 0):
         global old_delay_sec
-        global logs
         if flag == 1:
             value = value.get()
         if value > 0:
             old_delay_sec = value
             delay_entry_var.set(old_delay_sec)
             delay_decrease_button.config(relief=tk.RAISED)
-            print(f"delay_sec = {old_delay_sec}")
-            logs += f"Delay was changes to {old_delay_sec} second(s)\n"
-            tk_logs.set(logs)
+            insert_log_error(1,f"Delay was changes to {old_delay_sec} second(s)")
             if value == 1:
                 delay_decrease_button.config(relief=tk.SUNKEN)
         else:
@@ -702,12 +683,10 @@ def on_settings():
                 print(f"Selected item: {selected_item} {selected_index[0]}")
 
     def on_close_settings():
-        global logs
         settings_window.destroy()
         read_and_write_config(1, select_theme, temperature_unit, device,int(pin), int(allowtxt), int(allowxl), int(allowimg), int(delay_sec), int(allow_pulseio), reset_data, graph_environment, txt_filename, excel_filename, img_filename)
-        print("Config updated")
-        logs += f"Config file was updated\n"
-        tk_logs.set(logs)
+        insert_log_error(1,f"Config file was updated")
+        
     # Create a new instance of Tk for the new window
     settings_window = tk.Tk()
     settings_window.title("Settings")
@@ -769,6 +748,7 @@ def on_close():
         settings_window.destroy()
     except:
         pass
+    raise SystemExit()
 
 def update_temperature_humidity():
     global delay_sec
@@ -789,11 +769,9 @@ def update_temperature_humidity():
                     humidity = dhtDevice.humidity
                 except RuntimeError as error:
                     # Handle errors and log them
-                    errors += error.args[0] + "\n"
                     now = datetime.now()
-                    logs += ("Error happened at " + now.strftime("%d/%m/%Y, %H:%M:%S") + "\n")
-                    tk_logs.set(logs)
-                    tk_errors.set(errors)
+                    now = now.strftime("%d/%m/%Y, %H:%M:%S")
+                    insert_log_error(3,f"Error happened at {now}",error.args[0])
                     break
 
             if temperature is not None:
@@ -836,7 +814,9 @@ def update_temperature_humidity():
             
             window.after(1000, update_temperature_humidity)
         if args.debug:
-            tk_debug.set(f"Debug {window.winfo_width()}x{window.winfo_height()}")
+            tk_debug.set(f"Debug Window: {window.winfo_width()}x{window.winfo_height()} Box1: {frame_top_left.winfo_width()}x{frame_top_left.winfo_height()}\nBox2: {frame_top_right.winfo_width()}x{frame_top_right.winfo_height()} Box3: {frame_bottom_left.winfo_width()}x{frame_bottom_left.winfo_height()}\nBox4: {frame_bottom_right.winfo_width()}x{frame_bottom_right.winfo_height()}")
+            
+    
     except Exception as error:
         dhtDevice.exit()
         raise SystemExit(error)
@@ -860,6 +840,7 @@ def update_graph():
 def reset_values():
     temperature_hold.clear()
     humidity_hold.clear()
+    insert_log_error(1,"Graph was reset")
     
 window = tk.Tk()
 window.title("DHT Reader " + version)
@@ -947,8 +928,8 @@ countdown_label.pack(fill="x")
 button_frame = tk.Frame(frame_top_left, bg="white")
 button_frame.pack(side="bottom",fill="x")
 
-settings_button = tk.Button(button_frame, text ="Reset graph", command = reset_values)
-settings_button.pack(fill="x",side="left")
+graph_reset_button = tk.Button(button_frame, text ="Reset graph", command = reset_values)
+graph_reset_button.pack(fill="x",side="left")
 
 settings_button = tk.Button(button_frame, text ="Settings", command = on_settings)
 settings_button.pack(fill="x")
@@ -958,38 +939,40 @@ if args.debug:
     tk_debug = tk.StringVar(window)
     debug_label = tk.Label(frame_top_left, textvariable=tk_debug, anchor="sw", bg=background_main)
     debug_label.pack(side="bottom",fill="x")
-
-
 # Subframe: Bottom Left (Logs)
 # Labels and Entry widgets
 logs_label = tk.Label(frame_bottom_left, text="Logs", bg=background_title, fg=foreground_main)
 logs_label.pack(fill="x")
 
-logs_logs_label = tk.Label(
-    frame_bottom_left,
-    textvariable=tk_logs,
-    bg=background_errors_logs,
-    fg="white",
-    height=10,
-    anchor="nw",
-)
-logs_logs_label.pack(fill="x")
+# Create a Listbox widget
+logs_listbox = tk.Listbox(frame_bottom_left, selectmode=tk.SINGLE,  bg=background_errors_logs, fg = foreground_logs)
+
+# Create a Scrollbar widget
+logs_scrollbar = tk.Scrollbar(frame_bottom_left, command=logs_listbox.yview)
+
+# Configure the Listbox to use the Scrollbar
+logs_listbox.config(yscrollcommand=logs_scrollbar.set)
+
+logs_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+logs_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
 # Subframe: Bottom Right (Errors)
+
 # Labels and Entry widgets
 errors_label = tk.Label(frame_bottom_right, text="Errors", bg=background_title, fg=foreground_main)
 errors_label.pack(fill="x",padx=1)
 
-errors_errors_label = tk.Label(
-    frame_bottom_right,
-    textvariable=tk_errors,
-    bg=background_errors_logs,
-    fg="red",
-    height=10,
-    anchor="nw"
-    
-)
-errors_errors_label.pack(fill="x", padx=1)
+# Create a Listbox widget
+errors_listbox = tk.Listbox(frame_bottom_right, selectmode=tk.SINGLE, bg=background_errors_logs, fg = foreground_errors)
+
+# Create a Scrollbar widget
+errors_scrollbar = tk.Scrollbar(frame_bottom_right, command=errors_listbox.yview)
+
+# Configure the Listbox to use the Scrollbar
+errors_listbox.config(yscrollcommand=errors_scrollbar.set)
+
+errors_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+errors_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
 window.protocol("WM_DELETE_WINDOW", on_close)
 
