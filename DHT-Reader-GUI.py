@@ -1,4 +1,4 @@
-#DHT Reader v0.3 alpha 5 by D3SXX
+#DHT Reader v0.3 alpha 6 by D3SXX
 
 try:
     import os
@@ -19,7 +19,7 @@ try:
 except:
     raise SystemExit("Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter")
 
-version = "v0.3 alpha 5"
+version = "v0.3 alpha 6"
 
 # Reset array and add save any sentences
 def save_and_reset_array(array, sentences_to_save=1):
@@ -241,13 +241,29 @@ def init_device(flag, device, pin, allow_pulseio):
     dhtDevice = device(pin_value, bool(allow_pulseio))
     print(f"Device {dht_convert(device)} with pin {pin} initialized\nPulseio is set to {bool(allow_pulseio)}")
 
+def insert_log_error(flag, log_msg = "", error_msg = ""):
+    # flag == 1 --> add log only, flag == 2 --> add error only, flag == 3 --> both
+    if flag == 1:
+        logs_listbox.insert(tk.END, log_msg)
+        if args.debug:
+            print(log_msg)
+    elif flag == 2:
+        errors_listbox.insert(tk.END, error_msg)
+        if args.debug:
+            print(error_msg)
+    else:
+        logs_listbox.insert(tk.END, log_msg)
+        errors_listbox.insert(tk.END, error_msg)
+        if args.debug:
+            print(log_msg)
+            print(error_msg)
 def change_theme(select):
-    global background_main, background_errors_logs, background_title, foreground_main, foreground_logs, foreground_errors
-    
+    global background_main, background_errors_logs, background_title,background_button, foreground_main, foreground_logs, foreground_errors
     if select == 0:
         background_main = "white"
         background_errors_logs = "white"
         background_title = "lightgray"
+        background_button = "lightgray"
         foreground_main = "black"
         foreground_logs = "black"
         foreground_errors = "red"
@@ -255,21 +271,26 @@ def change_theme(select):
         background_main = "black"
         background_errors_logs = "black"
         background_title = "gray"
+        background_button = "#3d3d5c"
         foreground_main = "white"
         foreground_logs = "white"
         foreground_errors = "red"
-
-def insert_log_error(flag, log_msg = "", error_msg = ""):
-    # flag == 1 --> add log only, flag == 2 --> add error only, flag == 3 --> both
-    if flag == 1 or flag == 3:
-        logs_listbox.insert(tk.END, log_msg)
-        if args.debug:
-            print(log_msg)
-    if flag == 2 or flag == 3:
-        errors_listbox.insert(tk.END, error_msg)
-        if args.debug:
-            print(error_msg)
-        
+    elif select == 2:
+        background_main = "black"
+        background_errors_logs = "black"
+        background_title = "purple"
+        background_button = "#3d3d5c"
+        foreground_main = "white"
+        foreground_logs = "white"
+        foreground_errors = "red"
+    elif select == 3:
+        background_main = "blue"
+        background_errors_logs = "blue"
+        background_title = "gray"
+        background_button = "#3d3d5c"
+        foreground_main = "white"
+        foreground_logs = "white"
+        foreground_errors = "red"
 # Array for holding temperature and humidity
 temperature_hold = []
 humidity_hold = []
@@ -352,7 +373,11 @@ def on_settings():
             allow_pulseio = not bool(allow_pulseio)
             insert_log_error(1,f"Using Pulseio is set to {bool(allow_pulseio)}")
             init_device(0, device, pin, allow_pulseio) 
-    
+        elif option == 4:
+            global reset_data
+            reset_data = not bool(reset_data)
+            insert_log_error(1,f"Reset data at startup is set to {bool(reset_data)}")
+            
     def on_filename_entry_return(option, value):
         if option == 0:
             global txt_filename
@@ -415,8 +440,15 @@ def on_settings():
                 delay_decrease_button.config(relief=tk.SUNKEN)
         else:
             delay_decrease_button.config(relief=tk.SUNKEN)
-            print(f"delay value is too small to decrease --> {old_delay_sec}")
+            if args.debug:
+                insert_log_error(1,f"debug: delay value is too small to decrease --> {old_delay_sec}")
 
+    def on_theme_select(select):
+        global select_theme
+        themes_options = ["Default (white)", "Default (black)", "Classic (black)", "Classic (Blue)"]
+        select_theme  = themes_options.index(select)
+        insert_log_error(1,f"Theme selected: {select}")
+        
     def on_select(event):
         
         global device
@@ -439,23 +471,26 @@ def on_settings():
                 tk_settings_desc_list.set("DHT11, DHT21, DHT22\n")
                 tk_settings_desc_2.set(f"Pins allow to read the dht device, in theory any pin should work\n")
                 
-                settings_information_label = tk.Label(frame_right, textvariable=tk_settings_info, anchor="n", bg="white")
+                settings_information_label = tk.Label(frame_right, textvariable=tk_settings_info, anchor="n", bg=background_main, fg=foreground_main)
                 settings_information_label.pack(fill="x")
                 
-                settings_description_label = tk.Label(frame_right, textvariable=tk_settings_desc, anchor="nw", bg="white", wraplength=400)
+                settings_description_label = tk.Label(frame_right, textvariable=tk_settings_desc, anchor="nw",bg=background_main, fg=foreground_main)
                 settings_description_label.pack(fill="x")
                 
-                settings_description_list_label = tk.Label(frame_right, textvariable=tk_settings_desc_list, anchor="n", bg="white")
+                settings_description_list_label = tk.Label(frame_right, textvariable=tk_settings_desc_list, anchor="n",bg=background_main, fg=foreground_main)
                 settings_description_list_label.pack(fill="x")
                 
                 # Create a new frame to hold the OptionMenu widget
-                option_frame = tk.Frame(frame_right, bg="white")
+                option_frame = tk.Frame(frame_right, bg=background_main)
                 option_frame.pack(fill="x")
                 
                 device_options = ["DHT11", "DHT21", "DHT22"]
                 option_var = tk.StringVar(option_frame)
-                print(f"Menu options: {device_options} current device: {dht_convert(device)}")
-                
+                if args.debug:
+                    insert_log_error(1,f"Select {selected_index[0]} (Device and pin settings)")
+                    insert_log_error(1,f"Menu options: {device_options} current device: {dht_convert(device)}")
+                    insert_log_error(1,f"Current pin: {pin}")
+                    insert_log_error(1,f"pulseio: {bool(allow_pulseio)}")
                 if dht_convert(device) == "DHT11": # Set the default option (depends on the current device)
                     option_var.set(device_options[0])
                 elif dht_convert(device) == "DHT21":
@@ -464,31 +499,30 @@ def on_settings():
                     option_var.set(device_options[2])  
                 
                 device_label_var = tk.StringVar(option_frame, f"Current device: ")
-                device_label = tk.Label(option_frame, textvariable=device_label_var, bg="white")
+                device_label = tk.Label(option_frame, textvariable=device_label_var, bg=background_main, fg=foreground_main)
                 device_label.pack(side="left")
                       
                 option_menu = tk.OptionMenu(option_frame, option_var, *device_options, command=on_selection_changed)
                 option_menu.pack(fill="x", anchor="w")
                 
-                settings_nl_label = tk.Label(frame_right, textvariable=tk_settings_nl, anchor="n", bg="white")
+                settings_nl_label = tk.Label(frame_right, textvariable=tk_settings_nl, anchor="n", bg=background_main, fg=foreground_main)
                 settings_nl_label.pack(fill="x")
                 
-                settings_description_2_label = tk.Label(frame_right, textvariable=tk_settings_desc_2, anchor="w", bg="white", wraplength=400)
+                settings_description_2_label = tk.Label(frame_right, textvariable=tk_settings_desc_2, anchor="w", bg=background_main, fg=foreground_main)
                 settings_description_2_label.pack(fill="x")
                 
                 # Create a new frame to hold the Entry widget
-                entry_frame = tk.Frame(frame_right, bg="white")
+                entry_frame = tk.Frame(frame_right, bg=background_main)
                 entry_frame.pack(fill="x")
                 
-                print(f"Current pin: {pin}")
                 pin_label_var = tk.StringVar(entry_frame, f"Current pin: ")
-                pin_label = tk.Label(entry_frame, textvariable=pin_label_var, bg="white")
+                pin_label = tk.Label(entry_frame, textvariable=pin_label_var, bg=background_main, fg=foreground_main)
                 pin_label.pack(side="left")
                 
                 # Pin Entry
                 pin_entry_var = tk.StringVar(entry_frame)
                 pin_entry_var.set(pin)  # Set the default value to the current variable
-                pin_entry = tk.Entry(entry_frame, textvariable=pin_entry_var)
+                pin_entry = tk.Entry(entry_frame, textvariable=pin_entry_var,bg=background_main, fg=foreground_main)
                 pin_entry.pack(anchor="w")
                 
                 # Bind the "Return" key event to the Entry widget
@@ -496,13 +530,10 @@ def on_settings():
                 
                 checkbox_allowpulseio_var = tk.BooleanVar(value=bool(allow_pulseio))
                 
-                print(f"pulseio: {bool(allow_pulseio)}")
-                allowpulseio_checkbox = tk.Checkbutton(frame_right, text="Enable Pulseio", variable=checkbox_allowpulseio_var, command=lambda: on_checkbox_change(3), bg="white")
+                allowpulseio_checkbox = tk.Checkbutton(frame_right, text="Enable Pulseio", variable=checkbox_allowpulseio_var, command=lambda: on_checkbox_change(3), bg=background_main, fg=foreground_main)
                 allowpulseio_checkbox.pack(anchor="w")
                 if allow_pulseio:
                     allowpulseio_checkbox.select()
-                
-                
                 
             elif selected_index[0] == 1:
                 global allowtxt
@@ -512,92 +543,106 @@ def on_settings():
                 tk_settings_info.set("Save and Reset data settings\n")
                 tk_settings_desc.set("You can select couple of options where the data will be saved")
                 tk_settings_desc_2.set("Change filenames")
-                settings_information_label = tk.Label(frame_right, textvariable=tk_settings_info, anchor="n", bg="white")
+                settings_information_label = tk.Label(frame_right, textvariable=tk_settings_info, anchor="n", bg=background_main, fg=foreground_main)
                 settings_information_label.pack(fill="x")
 
-                settings_description_label = tk.Label(frame_right, textvariable=tk_settings_desc, anchor="nw", bg="white", wraplength=400)
+                settings_description_label = tk.Label(frame_right, textvariable=tk_settings_desc, anchor="nw", bg=background_main, fg=foreground_main)
                 settings_description_label.pack(fill="x")
 
+                if args.debug:
+                    insert_log_error(1,f"Select {selected_index[0]} (Save and Reset data settings)")
+                    insert_log_error(1,f"allowtxt: {bool(allowtxt)}")
+                    insert_log_error(1,f"allowxl: {bool(allowxl)}")
+                    insert_log_error(1,f"allowimg: {bool(allowimg)}")
+                    insert_log_error(1,f"txt_filename: {txt_filename}")
+                    insert_log_error(1,f"excel_filename: {excel_filename}")
+                    insert_log_error(1,f"img_filename: {img_filename}")
                 # Create a new frame to hold the checkbutton widgets
-                checkbutton_frame = tk.Frame(frame_right, bg="white")
+                checkbutton_frame = tk.Frame(frame_right, bg=background_main)
                 checkbutton_frame.pack(fill="x", anchor="w")
 
                 checkbox_allowtxt_var = tk.BooleanVar(value=bool(allowtxt))
                 
-                print(f"allowtxt: {bool(allowtxt)}")
-                allowtxt_checkbox = tk.Checkbutton(checkbutton_frame, text="Write to txt file", variable=checkbox_allowtxt_var, command=lambda: on_checkbox_change(0), bg="white")
+                allowtxt_checkbox = tk.Checkbutton(checkbutton_frame, text="Write to txt file", variable=checkbox_allowtxt_var, command=lambda: on_checkbox_change(0), bg=background_main, fg=foreground_main)
                 allowtxt_checkbox.pack(anchor="w")
                 if allowtxt:
                     allowtxt_checkbox.select()
                 
                 checkbox_allowxl_var = tk.BooleanVar(value=bool(allowxl))
                 
-                print(f"allowxl: {bool(allowxl)}")
-                allowxl_checkbox = tk.Checkbutton(checkbutton_frame, text="Write to Excel file", variable=checkbox_allowxl_var, command=lambda: on_checkbox_change(1), bg="white")
+                allowxl_checkbox = tk.Checkbutton(checkbutton_frame, text="Write to Excel file", variable=checkbox_allowxl_var, command=lambda: on_checkbox_change(1), bg=background_main, fg=foreground_main)
                 allowxl_checkbox.pack(anchor="w")
                 if allowxl:
                     allowxl_checkbox.select()
                     
                 checkbox_allowimg_var = tk.BooleanVar(value=bool(allowimg))
                 
-                print(f"allowimg: {bool(allowimg)}")
-                allowimg_checkbox = tk.Checkbutton(checkbutton_frame, text="Create an Image file", variable=checkbox_allowimg_var, command=lambda: on_checkbox_change(2), bg="white")
+                allowimg_checkbox = tk.Checkbutton(checkbutton_frame, text="Create an Image file", variable=checkbox_allowimg_var, command=lambda: on_checkbox_change(2), bg=background_main, fg=foreground_main)
                 allowimg_checkbox.pack(anchor="w")
                 if allowimg:
                     allowimg_checkbox.select()
                 
-                settings_description_2_label = tk.Label(frame_right, textvariable=tk_settings_desc_2, anchor="w", bg="white", wraplength=400)
+                settings_description_2_label = tk.Label(frame_right, textvariable=tk_settings_desc_2, anchor="w", bg=background_main, fg=foreground_main)
                 settings_description_2_label.pack(fill="x")
                 
                 # Create a new frame to hold the Entry widgets
-                entry_frame = tk.Frame(frame_right, bg="white")
+                entry_frame = tk.Frame(frame_right, bg=background_main)
                 entry_frame.pack(fill="x")
                 
-                print(f"txt_filename: {txt_filename}")
-                print(f"excel_filename: {excel_filename}")
-                print(f"img_filename: {img_filename}")
+
                 txt_filename_label_var = tk.StringVar(entry_frame, "Current txt filename: ")
                 excel_filename_label_var = tk.StringVar(entry_frame, "Current Excel filename: ")
                 img_filename_label_var = tk.StringVar(entry_frame, "Current Image filename: ")
                 
                 # Change filename for txt
-                txt_filename_label_var = tk.Label(entry_frame, textvariable=txt_filename_label_var, bg="white")
+                txt_filename_label_var = tk.Label(entry_frame, textvariable=txt_filename_label_var, bg=background_main, fg=foreground_main)
                 txt_filename_label_var.pack(anchor="w")
                 
                 # txt Entry
                 txt_filename_entry_var = tk.StringVar(entry_frame)
                 txt_filename_entry_var.set(txt_filename)  # Set the default value to the current variable
-                txt_filename_entry = tk.Entry(entry_frame, textvariable=txt_filename_entry_var)
+                txt_filename_entry = tk.Entry(entry_frame, textvariable=txt_filename_entry_var, bg=background_main, fg=foreground_main)
                 txt_filename_entry.pack(anchor="w")
                 
                 # Bind the "Return" key event to the Entry widget
                 txt_filename_entry.bind("<Return>", lambda event: on_filename_entry_return(0, txt_filename_entry_var))   
                 
                 # Change filename for Excel
-                excel_filename_label_var = tk.Label(entry_frame, textvariable=excel_filename_label_var, bg="white")
+                excel_filename_label_var = tk.Label(entry_frame, textvariable=excel_filename_label_var, bg=background_main, fg=foreground_main)
                 excel_filename_label_var.pack(anchor="w")
                 
                 # excel Entry
                 excel_filename_entry_var = tk.StringVar(entry_frame)
                 excel_filename_entry_var.set(excel_filename)  # Set the default value to the current variable
-                excel_filename_entry = tk.Entry(entry_frame, textvariable=excel_filename_entry_var)
+                excel_filename_entry = tk.Entry(entry_frame, textvariable=excel_filename_entry_var, bg=background_main, fg=foreground_main)
                 excel_filename_entry.pack(anchor="w")
                 
                 # Bind the "Return" key event to the Entry widget
                 excel_filename_entry.bind("<Return>", lambda event: on_filename_entry_return(1, excel_filename_entry_var))
                 
                 # Change filename for Image
-                img_filename_label_var = tk.Label(entry_frame, textvariable=img_filename_label_var, bg="white")
+                img_filename_label_var = tk.Label(entry_frame, textvariable=img_filename_label_var, bg=background_main, fg=foreground_main)
                 img_filename_label_var.pack(anchor="w")
                 
                 # excel Entry
                 img_filename_entry_var = tk.StringVar(entry_frame)
                 img_filename_entry_var.set(img_filename)  # Set the default value to the current variable
-                img_filename_entry = tk.Entry(entry_frame, textvariable=img_filename_entry_var)
+                img_filename_entry = tk.Entry(entry_frame, textvariable=img_filename_entry_var, bg=background_main, fg=foreground_main)
                 img_filename_entry.pack(anchor="w")
                 
                 # Bind the "Return" key event to the Entry widget
                 img_filename_entry.bind("<Return>", lambda event: on_filename_entry_return(2, img_filename_entry_var))    
+                
+                # Create a new frame to hold the reset data widgets
+                reset_data_frame = tk.Frame(frame_right, bg=background_main)
+                reset_data_frame.pack(fill="x", anchor="w")
+
+                reset_data_var = tk.BooleanVar(value=bool(allowtxt))
+                
+                reset_data_checkbox = tk.Checkbutton(reset_data_frame, text="Reset data at startup", variable=reset_data_var, command=lambda: on_checkbox_change(4), bg=background_main, fg=foreground_main)
+                reset_data_checkbox.pack(anchor="w")
+                if reset_data:
+                    reset_data_checkbox.select()
                 
             elif selected_index[0] == 2:
                 global c_unit_button
@@ -607,22 +652,29 @@ def on_settings():
                 global H_graph_change_button
                 global delay_entry_var
                 global delay_decrease_button
+                global select_theme
                 
-                tk_settings_info.set("Extra\n")
+                tk_settings_info.set("General\n")
                 tk_settings_desc.set("Change temperature unit")
-                settings_information_label = tk.Label(frame_right, textvariable=tk_settings_info, anchor="n", bg="white")
+                settings_information_label = tk.Label(frame_right, textvariable=tk_settings_info, anchor="n", bg=background_main, fg=foreground_main)
                 settings_information_label.pack(fill="x")
 
-                settings_description_label = tk.Label(frame_right, textvariable=tk_settings_desc, anchor="nw", bg="white", wraplength=400)
+                settings_description_label = tk.Label(frame_right, textvariable=tk_settings_desc, anchor="nw", bg=background_main, fg=foreground_main)
                 settings_description_label.pack(fill="x")
                 
+                if args.debug:
+                    insert_log_error(1,f"Select {selected_index[0]} (General)")
+                    insert_log_error(1,f"temperature_unit: {temperature_unit}")
+                    insert_log_error(1,f"graph_show: {graph_show}")
+                    insert_log_error(1,f"old_delay_sec: {old_delay_sec}")
+                    insert_log_error(1,f"select_theme: {select_theme}")
                 # Change temperature unit
                 
                 # Create a new frame to hold the temperature unit change widgets
-                temperature_unit_frame = tk.Frame(frame_right, bg="white")
+                temperature_unit_frame = tk.Frame(frame_right, bg=background_main)
                 temperature_unit_frame.pack(fill="x")
                 
-                temperature_unit_label = tk.Label(temperature_unit_frame, text="Unit:", bg="white")
+                temperature_unit_label = tk.Label(temperature_unit_frame, text="Unit:", bg=background_main, fg=foreground_main)
                 temperature_unit_label.pack(side="left")
                 
                 c_unit_button = tk.Button(temperature_unit_frame, text ="°C", command = lambda: change_temperature_unit("C"))
@@ -634,11 +686,11 @@ def on_settings():
                 c_unit_button.config(relief=tk.SUNKEN if temperature_unit == "C" else tk.RAISED)
                 f_unit_button.config(relief=tk.SUNKEN if temperature_unit == "F" else tk.RAISED)
                 
-                settings_description_2_label = tk.Label(frame_right, text="Change graph", anchor="nw", bg="white", wraplength=400)
+                settings_description_2_label = tk.Label(frame_right, text="Change graph", anchor="nw", bg=background_main, fg=foreground_main)
                 settings_description_2_label.pack(fill="x")
                 
                 # Create a new frame to hold the graph change widgets
-                graph_change_frame = tk.Frame(frame_right, bg="white")
+                graph_change_frame = tk.Frame(frame_right, bg=background_main)
                 graph_change_frame.pack(fill="x")
                 
                 T_graph_change_button = tk.Button(graph_change_frame, text ="Only Temperature", command = lambda: change_graph("T"))
@@ -653,38 +705,59 @@ def on_settings():
                 T_H_graph_change_button.config(relief=tk.SUNKEN if graph_show == "Both" else tk.RAISED)
                 H_graph_change_button.config(relief=tk.SUNKEN if graph_show == "Humidity" else tk.RAISED)
                 
-                settings_delay_label = tk.Label(frame_right, text="Change delay", anchor="nw", bg="white", wraplength=400)
+                settings_delay_label = tk.Label(frame_right, text="Change delay", anchor="nw", bg=background_main, fg=foreground_main)
                 settings_delay_label.pack(fill="x")
                 
                 # Create a new frame to hold the delay change widgets
-                delay_change_frame = tk.Frame(frame_right, bg="white")
+                delay_change_frame = tk.Frame(frame_right, bg=background_main)
                 delay_change_frame.pack(fill="x")
                 
-                delay_decrease_button = tk.Button(delay_change_frame, text ="-", command = lambda: on_change_delay(old_delay_sec-1))
+                delay_decrease_button = tk.Button(delay_change_frame, text ="-", command = lambda: on_change_delay(old_delay_sec-1),bg=background_button, fg=foreground_main)
                 delay_decrease_button.pack(side="left")
                 
                 # delay Entry
                 delay_entry_var = tk.IntVar(delay_change_frame)
                 delay_entry_var.set(old_delay_sec)  # Set the default value to the current variable
-                delay_change_entry = tk.Entry(delay_change_frame, textvariable=delay_entry_var)
+                delay_change_entry = tk.Entry(delay_change_frame, textvariable=delay_entry_var,bg=background_main, fg=foreground_main)
                 delay_change_entry.pack(side="left")
                 
                 # Bind the "Return" key event to the Entry widget
                 delay_change_entry.bind("<Return>", lambda event: on_change_delay(delay_entry_var,1))   
                 
-                delay_increase_button = tk.Button(delay_change_frame, text ="+", command = lambda: on_change_delay(old_delay_sec+1))
+                delay_increase_button = tk.Button(delay_change_frame, text ="+", command = lambda: on_change_delay(old_delay_sec+1),bg=background_button, fg=foreground_main)
                 delay_increase_button.pack(side="left")
                 
+                # Create a new frame to hold the theme change widgets
+                theme_change_frame = tk.Frame(frame_right, bg=background_main)
+                theme_change_frame.pack(fill="x")
+                
+                themes_options = ["Default (white)", "Default (black)", "Classic (black)", "Classic (Blue)"]
+                option_var = tk.StringVar(theme_change_frame)
+                if select_theme == 0: # Set the default option (depends on the select_theme variable)
+                    option_var.set(themes_options[0])
+                elif select_theme == 1:
+                    option_var.set(themes_options[1])  
+                elif select_theme == 2:
+                    option_var.set(themes_options[2])  
+                elif select_theme == 3:
+                    option_var.set(themes_options[3]) 
+                    
+                theme_label_var = tk.StringVar(theme_change_frame, f"Current theme: ")
+                theme_label = tk.Label(theme_change_frame, textvariable=theme_label_var, bg=background_main, fg=foreground_main)
+                theme_label.pack(side="left")
+                      
+                option_menu = tk.OptionMenu(theme_change_frame,option_var,*themes_options,command=lambda selected_value: on_theme_select(selected_value))
+
+                option_menu.pack(fill="x", anchor="w")
+                11
                 # Set the initial relief of the buttons based on the current graph_show
                 delay_decrease_button.config(relief=tk.SUNKEN if old_delay_sec <= 1 else tk.RAISED)
                 
             selected_item = listbox.get(selected_index)
-            if args.debug:
-                print(f"Selected item: {selected_item} {selected_index[0]}")
 
     def on_close_settings():
         settings_window.destroy()
-        read_and_write_config(1, select_theme, temperature_unit, device,int(pin), int(allowtxt), int(allowxl), int(allowimg), int(delay_sec), int(allow_pulseio), reset_data, graph_environment, txt_filename, excel_filename, img_filename)
+        read_and_write_config(1, select_theme, temperature_unit, device,int(pin), int(allowtxt), int(allowxl), int(allowimg), int(old_delay_sec), int(allow_pulseio), int(reset_data), graph_environment, txt_filename, excel_filename, img_filename)
         insert_log_error(1,f"Config file was updated")
         
     # Create a new instance of Tk for the new window
@@ -712,8 +785,8 @@ def on_settings():
     settings_window.grid_columnconfigure(1, weight=7)  # 70% width
     
     # Create four subframes for the grids
-    frame_left = tk.Frame(master=settings_window, bg="white")
-    frame_right = tk.Frame(master=settings_window, bg="white")
+    frame_left = tk.Frame(master=settings_window, bg=background_main)
+    frame_right = tk.Frame(master=settings_window, bg=background_main)
 
     # Grid layout for the four subframes
     frame_left.grid(row=0, column=0, sticky="nsew")
@@ -724,8 +797,8 @@ def on_settings():
     listbox_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
     # Create a Listbox with some options
-    options = [f"Device & Pin", f"Data Save & Reset", "Extra"]
-    listbox = tk.Listbox(listbox_container, selectmode=tk.SINGLE)
+    options = [f"Device & Pin", f"Data Save & Reset", "General"]
+    listbox = tk.Listbox(listbox_container, selectmode=tk.SINGLE, bg=background_main, fg=foreground_main)
     for option in options:
         listbox.insert(tk.END, option)
 
@@ -841,7 +914,21 @@ def reset_values():
     temperature_hold.clear()
     humidity_hold.clear()
     insert_log_error(1,"Graph was reset")
+
+def startup_reset_data():
     
+    file_names = [txt_filename, "xl_tmp"]
+    for file_name in file_names:
+        try:
+            os.remove(file_name)
+            insert_log_error(1,f"File '{file_name}' deleted successfully")
+        except FileNotFoundError:
+            insert_log_error(2,"",f"File '{file_name}' not found")
+        except PermissionError:
+            insert_log_error(2,"",f"Unable to delete file '{file_name}'. Permission denied")
+        except Exception as e:
+            insert_log_error(2,"",f"An error occurred while deleting file '{file_name}': {str(e)}")    
+
 window = tk.Tk()
 window.title("DHT Reader " + version)
 
@@ -886,11 +973,21 @@ frame_graph.grid(row=0, column=1, rowspan=3, padx=1, pady=1)
 graph_label = tk.Label(frame_top_right, text="Graph", bg=background_title, fg=foreground_main)
 graph_label.pack(fill="x", padx=1)
 
-fig = Figure(figsize=(5,4), dpi=100)
+fig = Figure(figsize=(5,4), dpi=100, facecolor=background_main)
 a = fig.add_subplot(111)
 a.set_xlabel('Time')
 a.set_ylabel('Value')
-a.legend()
+a.tick_params(axis='x', colors=foreground_main)
+a.tick_params(axis='y', colors=foreground_main)
+a.spines['top'].set_color(foreground_main)
+a.spines['bottom'].set_color(foreground_main)
+a.spines['left'].set_color(foreground_main)
+a.spines['right'].set_color(foreground_main)
+
+a.set_facecolor(background_main)
+
+# Create the legend and set its properties
+legend = a.legend()
 
 # Embed the figure in the Tkinter window
 canvas = FigureCanvasTkAgg(fig, master=frame_top_right)
@@ -925,13 +1022,13 @@ countdown_label = tk.Label(frame_top_left, textvariable=tk_countdown, anchor="nw
 countdown_label.pack(fill="x")
 
 # Create a new frame to hold the button widgets
-button_frame = tk.Frame(frame_top_left, bg="white")
+button_frame = tk.Frame(frame_top_left)
 button_frame.pack(side="bottom",fill="x")
 
-graph_reset_button = tk.Button(button_frame, text ="Reset graph", command = reset_values)
+graph_reset_button = tk.Button(button_frame, text ="Reset graph", command = reset_values, bg=background_button, fg=foreground_main)
 graph_reset_button.pack(fill="x",side="left")
 
-settings_button = tk.Button(button_frame, text ="Settings", command = on_settings)
+settings_button = tk.Button(button_frame, text ="Settings", command = on_settings,bg=background_button, fg=foreground_main)
 settings_button.pack(fill="x")
 
 
@@ -973,6 +1070,11 @@ errors_listbox.config(yscrollcommand=errors_scrollbar.set)
 
 errors_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 errors_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+if args.debug:
+    insert_log_error(1,"Debug mode activated with --debug")
+if reset_data == 1:
+    startup_reset_data()
 
 window.protocol("WM_DELETE_WINDOW", on_close)
 
