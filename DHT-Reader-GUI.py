@@ -1,4 +1,4 @@
-#DHT Reader v0.3 alpha 6 by D3SXX
+#DHT Reader v0.3 alpha 7 by D3SXX
 
 try:
     import os
@@ -19,7 +19,7 @@ try:
 except:
     raise SystemExit("Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter")
 
-version = "v0.3 alpha 6"
+version = "v0.3 alpha 7"
 
 # Reset array and add save any sentences
 def save_and_reset_array(array, sentences_to_save=1):
@@ -257,6 +257,7 @@ def insert_log_error(flag, log_msg = "", error_msg = ""):
         if args.debug:
             print(log_msg)
             print(error_msg)
+
 def change_theme(select):
     global background_main, background_errors_logs, background_title,background_button, foreground_main, foreground_logs, foreground_errors
     if select == 0:
@@ -291,6 +292,32 @@ def change_theme(select):
         foreground_main = "white"
         foreground_logs = "white"
         foreground_errors = "red"
+
+def auto_detect():
+    
+    pin = 0
+    allow_pulseio = 1
+    devices = ["DHT11","DHT21","DHT22"]
+    for current_device in devices:
+        print(f"Checking the {current_device}")
+        device = dht_convert(current_device)
+        for pin in range(0,20):
+            try:
+                if pin == 7 or pin == 8:
+                    continue
+                init_device(0, device, pin, allow_pulseio)
+                print(f"Checking pin {pin}")
+                temperature = dhtDevice.temperature
+                humidity = dhtDevice.humidity
+                print(temperature,humidity)
+                if temperature != None:
+                    print("Found correct pin")
+                    tk_device.set(f"Device: {current_device}")
+                    tk_pin.set(f"Pin: {pin}")
+                    return 0
+            except RuntimeError as error:
+                print(f"Error: {error}")
+
 # Array for holding temperature and humidity
 temperature_hold = []
 humidity_hold = []
@@ -319,6 +346,7 @@ img_filename = "T_and_H.png"
 parser = argparse.ArgumentParser(description='A DHT-Reader CLI Interface')
 parser.add_argument('--skip', action='store_true', help='Skip config check')
 parser.add_argument('--debug', action='store_true', help='Show debug info')
+parser.add_argument('--autodetect', action='store_true', help='Auto detect device')
 args = parser.parse_args()
 
 if not args.skip:
@@ -1031,7 +1059,6 @@ graph_reset_button.pack(fill="x",side="left")
 settings_button = tk.Button(button_frame, text ="Settings", command = on_settings,bg=background_button, fg=foreground_main)
 settings_button.pack(fill="x")
 
-
 if args.debug:
     tk_debug = tk.StringVar(window)
     debug_label = tk.Label(frame_top_left, textvariable=tk_debug, anchor="sw", bg=background_main)
@@ -1070,6 +1097,9 @@ errors_listbox.config(yscrollcommand=errors_scrollbar.set)
 
 errors_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 errors_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+if args.autodetect:
+    auto_detect()
 
 if args.debug:
     insert_log_error(1,"Debug mode activated with --debug")
