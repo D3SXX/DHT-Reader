@@ -1,4 +1,4 @@
-#DHT Reader v0.3 alpha 7 by D3SXX
+#DHT Reader v0.3 alpha 8 by D3SXX
 
 try:
     import os
@@ -19,7 +19,7 @@ try:
 except:
     raise SystemExit("Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter")
 
-version = "v0.3 alpha 7"
+version = "v0.3 alpha 8"
 
 # Reset array and add save any sentences
 def save_and_reset_array(array, sentences_to_save=1):
@@ -239,7 +239,8 @@ def init_device(flag, device, pin, allow_pulseio):
     # Initial the dht device, with data pin connected to:
     pin_value = getattr(board, "D" + str(pin))
     dhtDevice = device(pin_value, bool(allow_pulseio))
-    print(f"Device {dht_convert(device)} with pin {pin} initialized\nPulseio is set to {bool(allow_pulseio)}")
+    if flag != 3:
+        print(f"Device {dht_convert(device)} with pin {pin} initialized\nPulseio is set to {bool(allow_pulseio)}")
 
 def insert_log_error(flag, log_msg = "", error_msg = ""):
     # flag == 1 --> add log only, flag == 2 --> add error only, flag == 3 --> both
@@ -301,22 +302,24 @@ def auto_detect():
     for current_device in devices:
         print(f"Checking the {current_device}")
         device = dht_convert(current_device)
-        for pin in range(0,20):
-            try:
-                if pin == 7 or pin == 8:
-                    continue
-                init_device(0, device, pin, allow_pulseio)
-                print(f"Checking pin {pin}")
-                temperature = dhtDevice.temperature
-                humidity = dhtDevice.humidity
-                print(temperature,humidity)
-                if temperature != None:
-                    print("Found correct pin")
-                    tk_device.set(f"Device: {current_device}")
-                    tk_pin.set(f"Pin: {pin}")
-                    return 0
-            except RuntimeError as error:
-                print(f"Error: {error}")
+        for allow_pulseio in range(1,-1,-1):
+            print(f"Pulseio is set to {bool(allow_pulseio)}")
+            for pin in range(0,20):
+                try:
+                    if pin == 7 or pin == 8:
+                        continue
+                    init_device(3, device, pin, allow_pulseio)
+                    print(f"Checking pin {pin}")
+                    temperature = dhtDevice.temperature
+                    humidity = dhtDevice.humidity
+                    print(temperature,humidity)
+                    if temperature != None:
+                        print("Found correct pin")
+                        tk_device.set(f"Device: {current_device}")
+                        tk_pin.set(f"Pin: {pin}")
+                        return 0
+                except RuntimeError as error:
+                    print(f"Error: {error}")
 
 # Array for holding temperature and humidity
 temperature_hold = []
@@ -358,7 +361,22 @@ change_theme(select_theme)
 
 old_delay_sec = delay_sec
 
-        
+def on_autodetect():
+    # Create a new instance of Tk for the new window
+    autodetect_window = tk.Tk()
+    autodetect_window.title("Auto detect")
+
+    # Set the minimum size for the window (width, height)
+    settings_window.minsize(400, 200)
+    settings_window.maxsize(800, 600)
+            
+    # Create a new frame to hold the Auto detect widgets
+    window_frame = tk.Frame(master= autodetect_window,bg=background_main)
+    window_frame.pack(fill="x")
+                
+    autodetect_frame_button = tk.Button(window_frame, text ="Detect Device", command = auto_detect, bg=background_button, fg=foreground_main)
+    autodetect_frame_button.pack(side="left")       
+    
 def on_settings():
     global settings_window
     global frame_right
@@ -495,18 +513,9 @@ def on_settings():
                 global checkbox_allowpulseio_var
                 
                 tk_settings_info.set("Device and pin settings\n")
-                tk_settings_desc.set(f"DHT devices that are supported by the program are:")
-                tk_settings_desc_list.set("DHT11, DHT21, DHT22\n")
-                tk_settings_desc_2.set(f"Pins allow to read the dht device, in theory any pin should work\n")
                 
                 settings_information_label = tk.Label(frame_right, textvariable=tk_settings_info, anchor="n", bg=background_main, fg=foreground_main)
                 settings_information_label.pack(fill="x")
-                
-                settings_description_label = tk.Label(frame_right, textvariable=tk_settings_desc, anchor="nw",bg=background_main, fg=foreground_main)
-                settings_description_label.pack(fill="x")
-                
-                settings_description_list_label = tk.Label(frame_right, textvariable=tk_settings_desc_list, anchor="n",bg=background_main, fg=foreground_main)
-                settings_description_list_label.pack(fill="x")
                 
                 # Create a new frame to hold the OptionMenu widget
                 option_frame = tk.Frame(frame_right, bg=background_main)
@@ -531,17 +540,14 @@ def on_settings():
                 device_label.pack(side="left")
                       
                 option_menu = tk.OptionMenu(option_frame, option_var, *device_options, command=on_selection_changed)
-                option_menu.pack(fill="x", anchor="w")
-                
-                settings_nl_label = tk.Label(frame_right, textvariable=tk_settings_nl, anchor="n", bg=background_main, fg=foreground_main)
-                settings_nl_label.pack(fill="x")
-                
-                settings_description_2_label = tk.Label(frame_right, textvariable=tk_settings_desc_2, anchor="w", bg=background_main, fg=foreground_main)
-                settings_description_2_label.pack(fill="x")
+                option_menu.pack(side="left", anchor="w")
                 
                 # Create a new frame to hold the Entry widget
                 entry_frame = tk.Frame(frame_right, bg=background_main)
                 entry_frame.pack(fill="x")
+                
+                #settings_description_2_label = tk.Label(entry_frame, textvariable=tk_settings_desc_2, anchor="nw", bg=background_main, fg=foreground_main)
+                #settings_description_2_label.pack(fill="x")
                 
                 pin_label_var = tk.StringVar(entry_frame, f"Current pin: ")
                 pin_label = tk.Label(entry_frame, textvariable=pin_label_var, bg=background_main, fg=foreground_main)
@@ -556,12 +562,28 @@ def on_settings():
                 # Bind the "Return" key event to the Entry widget
                 pin_entry.bind("<Return>", on_pin_entry_return)        
                 
+                # Optional
+                
+                # Create a new frame to hold the optional widgets
+                optional_frame = tk.Frame(frame_right, bg=background_main)
+                optional_frame.pack(fill="x")
+                
+                optional_label_var = tk.StringVar(optional_frame, f"Optional:")
+                optional_label = tk.Label(optional_frame, textvariable=optional_label_var, bg=background_main, fg=foreground_main)
+                optional_label.pack(side="left")
+                
                 checkbox_allowpulseio_var = tk.BooleanVar(value=bool(allow_pulseio))
                 
                 allowpulseio_checkbox = tk.Checkbutton(frame_right, text="Enable Pulseio", variable=checkbox_allowpulseio_var, command=lambda: on_checkbox_change(3), bg=background_main, fg=foreground_main)
-                allowpulseio_checkbox.pack(anchor="w")
+                allowpulseio_checkbox.pack(anchor="nw")
                 if allow_pulseio:
                     allowpulseio_checkbox.select()
+                # Create a new frame to hold the Auto detect widgets
+                autodetect_frame = tk.Frame(frame_right, bg=background_main)
+                autodetect_frame.pack(fill="x")
+                
+                autodetect_frame_button = tk.Button(autodetect_frame, text ="Detect Device", command = on_autodetect, bg=background_button, fg=foreground_main)
+                autodetect_frame_button.pack(side="left")
                 
             elif selected_index[0] == 1:
                 global allowtxt
@@ -569,7 +591,7 @@ def on_settings():
                 global allowimg
                 
                 tk_settings_info.set("Save and Reset data settings\n")
-                tk_settings_desc.set("You can select couple of options where the data will be saved")
+                tk_settings_desc.set("Save data to formats:")
                 tk_settings_desc_2.set("Change filenames")
                 settings_information_label = tk.Label(frame_right, textvariable=tk_settings_info, anchor="n", bg=background_main, fg=foreground_main)
                 settings_information_label.pack(fill="x")
@@ -591,21 +613,21 @@ def on_settings():
 
                 checkbox_allowtxt_var = tk.BooleanVar(value=bool(allowtxt))
                 
-                allowtxt_checkbox = tk.Checkbutton(checkbutton_frame, text="Write to txt file", variable=checkbox_allowtxt_var, command=lambda: on_checkbox_change(0), bg=background_main, fg=foreground_main)
+                allowtxt_checkbox = tk.Checkbutton(checkbutton_frame, text="txt file", variable=checkbox_allowtxt_var, command=lambda: on_checkbox_change(0), bg=background_main, fg=foreground_main)
                 allowtxt_checkbox.pack(anchor="w")
                 if allowtxt:
                     allowtxt_checkbox.select()
                 
                 checkbox_allowxl_var = tk.BooleanVar(value=bool(allowxl))
                 
-                allowxl_checkbox = tk.Checkbutton(checkbutton_frame, text="Write to Excel file", variable=checkbox_allowxl_var, command=lambda: on_checkbox_change(1), bg=background_main, fg=foreground_main)
+                allowxl_checkbox = tk.Checkbutton(checkbutton_frame, text="Excel file", variable=checkbox_allowxl_var, command=lambda: on_checkbox_change(1), bg=background_main, fg=foreground_main)
                 allowxl_checkbox.pack(anchor="w")
                 if allowxl:
                     allowxl_checkbox.select()
                     
                 checkbox_allowimg_var = tk.BooleanVar(value=bool(allowimg))
                 
-                allowimg_checkbox = tk.Checkbutton(checkbutton_frame, text="Create an Image file", variable=checkbox_allowimg_var, command=lambda: on_checkbox_change(2), bg=background_main, fg=foreground_main)
+                allowimg_checkbox = tk.Checkbutton(checkbutton_frame, text="Image file", variable=checkbox_allowimg_var, command=lambda: on_checkbox_change(2), bg=background_main, fg=foreground_main)
                 allowimg_checkbox.pack(anchor="w")
                 if allowimg:
                     allowimg_checkbox.select()
@@ -661,6 +683,13 @@ def on_settings():
                 # Bind the "Return" key event to the Entry widget
                 img_filename_entry.bind("<Return>", lambda event: on_filename_entry_return(2, img_filename_entry_var))    
                 
+                # Create a new frame to hold the optional widgets
+                optional_frame = tk.Frame(frame_right, bg=background_main)
+                optional_frame.pack(fill="x")
+                
+                optional_label_var = tk.StringVar(optional_frame, f"Optional")
+                optional_label = tk.Label(optional_frame, textvariable=optional_label_var, bg=background_main, fg=foreground_main)
+                optional_label.pack(side="left")                
                 # Create a new frame to hold the reset data widgets
                 reset_data_frame = tk.Frame(frame_right, bg=background_main)
                 reset_data_frame.pack(fill="x", anchor="w")
@@ -705,9 +734,9 @@ def on_settings():
                 temperature_unit_label = tk.Label(temperature_unit_frame, text="Unit:", bg=background_main, fg=foreground_main)
                 temperature_unit_label.pack(side="left")
                 
-                c_unit_button = tk.Button(temperature_unit_frame, text ="°C", command = lambda: change_temperature_unit("C"))
+                c_unit_button = tk.Button(temperature_unit_frame, text ="°C", command = lambda: change_temperature_unit("C"), bg=background_button, fg=foreground_main)
                 c_unit_button.pack(side="left")
-                f_unit_button = tk.Button(temperature_unit_frame, text ="°F", command = lambda: change_temperature_unit("F"))
+                f_unit_button = tk.Button(temperature_unit_frame, text ="°F", command = lambda: change_temperature_unit("F"), bg=background_button, fg=foreground_main)
                 f_unit_button.pack(side="left")
                 
                 # Set the initial relief of the buttons based on the current temperature_unit
@@ -721,11 +750,11 @@ def on_settings():
                 graph_change_frame = tk.Frame(frame_right, bg=background_main)
                 graph_change_frame.pack(fill="x")
                 
-                T_graph_change_button = tk.Button(graph_change_frame, text ="Only Temperature", command = lambda: change_graph("T"))
+                T_graph_change_button = tk.Button(graph_change_frame, text ="Only Temperature", command = lambda: change_graph("T"), bg=background_button, fg=foreground_main)
                 T_graph_change_button.pack(side="left")
-                T_H_graph_change_button = tk.Button(graph_change_frame, text ="Both", command = lambda: change_graph("Both"))
+                T_H_graph_change_button = tk.Button(graph_change_frame, text ="Both", command = lambda: change_graph("Both"), bg=background_button, fg=foreground_main)
                 T_H_graph_change_button.pack(side="left")
-                H_graph_change_button = tk.Button(graph_change_frame, text ="Only Humidity", command = lambda: change_graph("H"))
+                H_graph_change_button = tk.Button(graph_change_frame, text ="Only Humidity", command = lambda: change_graph("H"), bg=background_button, fg=foreground_main)
                 H_graph_change_button.pack(side="left")
                 
                 # Set the initial relief of the buttons based on the current graph_show
