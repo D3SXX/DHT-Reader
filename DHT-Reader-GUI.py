@@ -246,15 +246,19 @@ def insert_log_error(flag, log_msg = "", error_msg = ""):
     # flag == 1 --> add log only, flag == 2 --> add error only, flag == 3 --> both
     if flag == 1:
         logs_listbox.insert(tk.END, log_msg)
+        logs_listbox.see(tk.END)
         if args.debug:
             print(log_msg)
     elif flag == 2:
         errors_listbox.insert(tk.END, error_msg)
+        errors_listbox.see(tk.END)
         if args.debug:
             print(error_msg)
     else:
         logs_listbox.insert(tk.END, log_msg)
+        logs_listbox.see(tk.END)
         errors_listbox.insert(tk.END, error_msg)
+        errors_listbox.see(tk.END)
         if args.debug:
             print(log_msg)
             print(error_msg)
@@ -294,32 +298,63 @@ def change_theme(select):
         foreground_logs = "white"
         foreground_errors = "red"
 
-def auto_detect():
-    
+def auto_detect(flag = 0):
     pin = 0
     allow_pulseio = 1
     devices = ["DHT11","DHT21","DHT22"]
     for current_device in devices:
-        print(f"Checking the {current_device}")
+        msg = f"Checking the {current_device}"
+        if flag == 1:
+            autodetect_listbox.insert(tk.END, msg)
+            autodetect_listbox.see(tk.END)
+            autodetect_listbox.update_idletasks()
+        print(msg)
         device = dht_convert(current_device)
         for allow_pulseio in range(1,-1,-1):
-            print(f"Pulseio is set to {bool(allow_pulseio)}")
+            msg = f"Pulseio is set to {bool(allow_pulseio)}"
+            if flag == 1:
+                autodetect_listbox.insert(tk.END, msg)
+                autodetect_listbox.see(tk.END)
+                autodetect_listbox.update_idletasks()
+            print(msg)
             for pin in range(0,20):
                 try:
                     if pin == 7 or pin == 8:
                         continue
                     init_device(3, device, pin, allow_pulseio)
-                    print(f"Checking pin {pin}")
+                    msg = f"Checking pin {pin}"
+                    if flag == 1:
+                        autodetect_listbox.insert(tk.END, msg)
+                        autodetect_listbox.see(tk.END)
+                        autodetect_listbox.update_idletasks()
+                    print(msg)
                     temperature = dhtDevice.temperature
                     humidity = dhtDevice.humidity
                     print(temperature,humidity)
-                    if temperature != None:
-                        print("Found correct pin")
+                    msg = f"Detected {current_device} at pin {pin} (Pulseio is set to {bool(allow_pulseio)})"
+                    if flag == 1:
+                        autodetect_listbox.insert(tk.END, msg)
+                        autodetect_listbox.see(tk.END)
+                        autodetect_listbox.update_idletasks()
+                    print(msg)
+                    tk_device.set(f"Device: {current_device}")
+                    tk_pin.set(f"Pin: {pin}")
+                    return 0
+                except RuntimeError as error:
+                    if str(error) == "DHT sensor not found, check wiring":
+                        print(f"Error: {error}")
+                        
+                    else:
+                        print(error)
+                        msg = f"Detected {current_device} at pin {pin} (Pulseio is set to {bool(allow_pulseio)})"
+                        if flag == 1:
+                            autodetect_listbox.insert(tk.END, msg)
+                            autodetect_listbox.see(tk.END)
+                            autodetect_listbox.update_idletasks()
+                        print(msg)
                         tk_device.set(f"Device: {current_device}")
                         tk_pin.set(f"Pin: {pin}")
-                        return 0
-                except RuntimeError as error:
-                    print(f"Error: {error}")
+                        return 0 
 
 # Array for holding temperature and humidity
 temperature_hold = []
@@ -362,20 +397,57 @@ change_theme(select_theme)
 old_delay_sec = delay_sec
 
 def on_autodetect():
+    
+    global autodetect_listbox
+    
+    def on_close_autodetect():
+        autodetect_window.destroy()
+        
+    def on_start_autodetect():
+        progress_bar["value"] = 0  # Reset the progress bar to 0
+        autodetect_listbox.delete(0, tk.END)  # Clear the Listbox before starting the autodetect
+        progress_bar["maximum"] = len(devices)  # Set the maximum value for the progress bar
+        autodetect_listbox.insert(tk.END, "Auto detecting devices...")
+        autodetect_listbox.see(tk.END)  # Scroll to the last item
+        autodetect_window.update_idletasks()  # Update the GUI before starting autodetect
+        auto_detect(1)  # Start the auto_detect function with the flag set to 1
+
     # Create a new instance of Tk for the new window
     autodetect_window = tk.Tk()
     autodetect_window.title("Auto detect")
 
     # Set the minimum size for the window (width, height)
-    settings_window.minsize(400, 200)
-    settings_window.maxsize(800, 600)
+    autodetect_window.minsize(450,100)
+    autodetect_window.maxsize(600, 200)
             
     # Create a new frame to hold the Auto detect widgets
-    window_frame = tk.Frame(master= autodetect_window,bg=background_main)
+    window_frame = tk.Frame(master=autodetect_window,bg=background_main)
     window_frame.pack(fill="x")
-                
-    autodetect_frame_button = tk.Button(window_frame, text ="Detect Device", command = auto_detect, bg=background_button, fg=foreground_main)
-    autodetect_frame_button.pack(side="left")       
+    
+    autodetect_frame_button = tk.Button(window_frame, text ="Detect Device", command = lambda: auto_detect(1), bg=background_button, fg=foreground_main)
+    autodetect_frame_button.pack(side="left")
+    
+    if args.debug:
+        insert_log_error(1,f"Auto detect window open")
+
+    #autodetect_frame_button = tk.Button(window_frame, text="Detect Device", command=on_start_autodetect, bg=background_button, fg=foreground_main)
+    # autodetect_frame_button.pack(side="left")
+
+    # Create a Listbox widget
+    autodetect_listbox = tk.Listbox(window_frame, selectmode=tk.SINGLE, bg=background_errors_logs, fg=foreground_logs)
+
+    # Create a Scrollbar widget
+    autodetect_scrollbar = tk.Scrollbar(window_frame, command=autodetect_listbox.yview)
+
+    # Configure the Listbox to use the Scrollbar
+    autodetect_listbox.config(yscrollcommand=autodetect_scrollbar.set)
+
+    autodetect_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    autodetect_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+    # Create a Progressbar widget
+    progress_bar = ttk.Progressbar(autodetect_window, orient="horizontal", mode="determinate")
+    progress_bar.pack(fill="x", padx=20, pady=5)
     
 def on_settings():
     global settings_window
@@ -545,9 +617,6 @@ def on_settings():
                 # Create a new frame to hold the Entry widget
                 entry_frame = tk.Frame(frame_right, bg=background_main)
                 entry_frame.pack(fill="x")
-                
-                #settings_description_2_label = tk.Label(entry_frame, textvariable=tk_settings_desc_2, anchor="nw", bg=background_main, fg=foreground_main)
-                #settings_description_2_label.pack(fill="x")
                 
                 pin_label_var = tk.StringVar(entry_frame, f"Current pin: ")
                 pin_label = tk.Label(entry_frame, textvariable=pin_label_var, bg=background_main, fg=foreground_main)
