@@ -1,4 +1,4 @@
-#DHT Reader v0.3 alpha 9 by D3SXX
+#DHT Reader v0.3 alpha 10 by D3SXX
 
 try:
     import os
@@ -19,7 +19,7 @@ try:
 except:
     raise SystemExit("Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter")
 
-version = "v0.3 alpha 9"
+version = "v0.3 alpha 10"
 
 # Reset array and add save any sentences
 def save_and_reset_array(array, sentences_to_save=1):
@@ -298,18 +298,30 @@ def change_theme(select):
         foreground_logs = "white"
         foreground_errors = "red"
 
-def auto_detect(flag = 0, scan_all = 1):
+def auto_detect(flag = 0, scan_all = 1, first_pin = 0, last_pin = 20):
     pin = 0
     allow_pulseio = 1
     devices = ["DHT11","DHT21","DHT22"]
+    if flag == 1:
+        if last_pin >= 7 and last_pin < 8:
+            cut_val = 3*2
+        elif last_pin >= 8:
+            cut_val = 3*2*2
+        else:
+            cut_val = 0
+        if first_pin > 1:
+            val = 3
+        else:
+            val = 2
+        max_value_pg = (last_pin-first_pin+2)*3*2-cut_val
+        progress_bar["value"] = first_pin
+        progress_bar["maximum"] = max_value_pg
+        
     for current_device in devices:
         msg = f"Checking the {current_device}"
         if flag == 1:
             autodetect_listbox.insert(tk.END, msg)
             autodetect_listbox.see(tk.END)
-            max_value_pg = 20*3*2-3*2
-            progress_bar["value"] = 0
-            progress_bar["maximum"] = max_value_pg
             autodetect_listbox.update_idletasks()
         print(msg)
         device = dht_convert(current_device)
@@ -321,7 +333,7 @@ def auto_detect(flag = 0, scan_all = 1):
                 progress_bar["value"] += 1
                 autodetect_listbox.update_idletasks()
             print(msg)
-            for pin in range(0,20):
+            for pin in range(first_pin,last_pin+1):
                 try:
                     if pin == 7 or pin == 8:
                         continue
@@ -414,9 +426,25 @@ def on_autodetect():
         if args.debug:
             insert_log_error(1, f"scan_all is set to {scan_all}")
 
-    global autodetect_listbox, progress_bar, scan_all
+    def on_enter_first_pin(event):
+        global first_pin
+        first_pin = int(first_pin_entry.get())
+        if args.debug:
+            insert_log_error(1, f"first_pin is set to {first_pin}")
+
+    def on_enter_last_pin(event):
+        global last_pin
+        last_pin = int(last_pin_entry.get())
+        if args.debug:
+            insert_log_error(1, f"last_pin is set to {last_pin}")
+
+    global autodetect_listbox, progress_bar, scan_all, first_pin, last_pin
 
     scan_all = False
+    first_pin = 0
+    last_pin = 20
+    s = ttk.Style()
+    s.configure("Custom.TLabelframe", background=background_main)
 
     def on_close_autodetect():
         autodetect_window.destroy()
@@ -426,7 +454,7 @@ def on_autodetect():
     autodetect_window.title("Auto detect")
 
     # Set the minimum size for the window (width, height)
-    autodetect_window.minsize(450, 100)
+    autodetect_window.minsize(450, 150)
     autodetect_window.maxsize(600, 200)
 
     if args.debug:
@@ -436,36 +464,60 @@ def on_autodetect():
     window_frame = tk.Frame(master=autodetect_window, bg=background_main)
     window_frame.pack(fill="both", expand=True)
 
-    autodetect_frame_button = tk.Button(window_frame, text="Detect Device", command=lambda: auto_detect(1, int(scan_all)), bg=background_button, fg=foreground_main)
+    autodetect_frame_button = tk.Button(window_frame, text="Detect Device", command=lambda: auto_detect(1, int(scan_all), first_pin, last_pin), bg=background_button, fg=foreground_main)
     autodetect_frame_button.grid(row=0, column=0)
 
     checkbox_scan_all_var = tk.BooleanVar(value=bool(scan_all))
     scan_all_checkbox = tk.Checkbutton(window_frame, text="Don't stop scanning", variable=checkbox_scan_all_var, command=change_scan_all, bg=background_main, fg=foreground_main)
-    scan_all_checkbox.grid(row=1, column=0, sticky="nw")
+    scan_all_checkbox.grid(row=1, column=0)
 
     if scan_all:
         scan_all_checkbox.select()
 
+    # Create a LabelFrame to group the label and entries
+    pins_frame = ttk.LabelFrame(window_frame, text="First and last pins to scan", padding=5, style="Custom.TLabelframe")
+    pins_frame.grid(row=2, column=0, sticky="ew")
+
+    pins_frame_content = tk.Frame(pins_frame, bg=background_main)  # Separate frame for content with background color
+    pins_frame_content.pack(fill="both", expand=True)
+
+    first_pin_label = tk.Label(pins_frame_content, text="First pin:", bg=background_main, fg=foreground_main)
+    first_pin_label.grid(row=0, column=0)
+
+    first_pin_entry = tk.Entry(pins_frame_content, bg=background_main, fg=foreground_main)
+    first_pin_entry.grid(row=0, column=1)
+    first_pin_entry.insert(0, first_pin)
+    first_pin_entry.bind("<Return>", on_enter_first_pin)
+
+    last_pin_label = tk.Label(pins_frame_content, text="Last pin:", bg=background_main, fg=foreground_main)
+    last_pin_label.grid(row=1, column=0)
+
+    last_pin_entry = tk.Entry(pins_frame_content, bg=background_main, fg=foreground_main)
+    last_pin_entry.grid(row=1, column=1)
+    last_pin_entry.insert(0, last_pin)
+    last_pin_entry.bind("<Return>", on_enter_last_pin)
+
     # Create a Listbox widget
     autodetect_listbox = tk.Listbox(window_frame, selectmode=tk.SINGLE, bg=background_errors_logs, fg=foreground_logs)
-    autodetect_listbox.grid(row=0, column=1, rowspan=2, sticky="nsew")
+    autodetect_listbox.grid(row=0, column=1, rowspan=3, sticky="nsew")
 
     # Create a Scrollbar widget
     autodetect_scrollbar = tk.Scrollbar(window_frame, command=autodetect_listbox.yview)
-    autodetect_scrollbar.grid(row=0, column=2, rowspan=2, sticky="ns")
+    autodetect_scrollbar.grid(row=0, column=2, rowspan=3, sticky="ns")
 
     # Configure the Listbox to use the Scrollbar
     autodetect_listbox.config(yscrollcommand=autodetect_scrollbar.set)
 
     # Create a Progressbar widget
-    progress_bar = ttk.Progressbar(autodetect_window, orient="horizontal", mode="determinate")
-    progress_bar.pack(fill="x", padx=20, pady=5)
+    progress_bar = ttk.Progressbar(window_frame, orient="horizontal", mode="determinate")
+    progress_bar.grid(row=3, column=0, columnspan=3, sticky="ew", padx=20, pady=5)
 
     # Make the rows and columns expandable
     window_frame.columnconfigure(1, weight=1)
+    window_frame.rowconfigure(3, weight=1)
 
     autodetect_window.mainloop()
-    
+
 def on_settings():
     global settings_window
     global frame_right
@@ -1004,16 +1056,19 @@ def update_temperature_humidity():
         tk_temperature.set(f"Temperature: {temperature} °{temperature_unit}")
         tk_humidity.set(f"Humidity: {humidity} %")
         
+        if delay_sec != old_delay_sec:
+            delay_progress_bar["value"] += 1
+        else:
+            delay_progress_bar["value"] = 0
         # Update the countdown variable
         tk_countdown.set(f"The next update: {delay_sec} seconds")
         delay_sec -= 1  # Decrement the delay
 
         # Schedule the next update
         if delay_sec >= 0:
-            delay_progress_bar["value"] += 1
             window.after(1000, update_temperature_humidity)  # Schedule the next update after 1 second
         else:
-            delay_progress_bar["value"] = 0
+            delay_progress_bar["value"] += 1
             tk_countdown.set(f"The next update: 0 seconds")  # Set countdown to 0 when the delay is complete
             delay_sec = old_delay_sec
             if not temperature == None:
