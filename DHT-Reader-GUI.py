@@ -1,4 +1,4 @@
-#DHT Reader v0.3 alpha 10 by D3SXX
+#DHT Reader v0.3 alpha 11 by D3SXX
 
 try:
     import os
@@ -19,7 +19,7 @@ try:
 except:
     raise SystemExit("Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter")
 
-version = "v0.3 alpha 10"
+version = "v0.3 alpha 11"
 
 # Reset array and add save any sentences
 def save_and_reset_array(array, sentences_to_save=1):
@@ -304,16 +304,16 @@ def auto_detect(flag = 0, scan_all = 1, first_pin = 0, last_pin = 20):
     devices = ["DHT11","DHT21","DHT22"]
     if flag == 1:
         if last_pin >= 7 and last_pin < 8:
-            cut_val = 3*2
+            cut_val = 6
         elif last_pin >= 8:
-            cut_val = 3*2*2
+            cut_val = 12
         else:
             cut_val = 0
-        if first_pin > 1:
-            val = 3
+        if first_pin > 0:
+            val = first_pin
         else:
-            val = 2
-        max_value_pg = (last_pin-first_pin+2)*3*2-cut_val
+            val = 0
+        max_value_pg = (last_pin+1-first_pin)*3*2-cut_val+val
         progress_bar["value"] = first_pin
         progress_bar["maximum"] = max_value_pg
         
@@ -330,7 +330,6 @@ def auto_detect(flag = 0, scan_all = 1, first_pin = 0, last_pin = 20):
             if flag == 1:
                 autodetect_listbox.insert(tk.END, msg)
                 autodetect_listbox.see(tk.END)
-                progress_bar["value"] += 1
                 autodetect_listbox.update_idletasks()
             print(msg)
             for pin in range(first_pin,last_pin+1):
