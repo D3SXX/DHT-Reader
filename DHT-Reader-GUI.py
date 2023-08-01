@@ -1,4 +1,4 @@
-#DHT Reader v0.3 alpha 11 by D3SXX
+#DHT Reader v0.3 by D3SXX
 
 try:
     import os
@@ -10,7 +10,7 @@ try:
     import matplotlib
     import matplotlib.pyplot as plt
     from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-    from matplotlib.figure import Figure  # Import Figure from matplotlib.figure
+    from matplotlib.figure import Figure
     import xlsxwriter
     import argparse
     import shutil
@@ -19,15 +19,7 @@ try:
 except:
     raise SystemExit("Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter")
 
-version = "v0.3 alpha 11"
-
-# Reset array and add save any sentences
-def save_and_reset_array(array, sentences_to_save=1):
-    array_length = len(array)
-    if array_length > sentences_to_save:
-        array_to_save = array[array_length - sentences_to_save:]
-        array.clear()
-        array.extend(array_to_save)
+version = "v0.3"
         
 # A converter for dht name
 # Also if flag is set to 1 it checks for correct name
@@ -460,38 +452,39 @@ def on_autodetect():
         insert_log_error(1, "Auto detect window open")
 
     # Create a new frame to hold the Auto detect widgets
-    window_frame = tk.Frame(master=autodetect_window, bg=background_main)
+    window_frame = ttk.Frame(master=autodetect_window, style="Custom.TFrame")
     window_frame.pack(fill="both", expand=True)
 
-    autodetect_frame_button = tk.Button(window_frame, text="Detect Device", command=lambda: auto_detect(1, int(scan_all), first_pin, last_pin), bg=background_button, fg=foreground_main)
+    autodetect_frame_button = ttk.Button(window_frame, text="Detect Device", command=lambda: auto_detect(1, int(scan_all), first_pin, last_pin), style="Custom.TButton")
     autodetect_frame_button.grid(row=0, column=0)
-
-    checkbox_scan_all_var = tk.BooleanVar(value=bool(scan_all))
-    scan_all_checkbox = tk.Checkbutton(window_frame, text="Don't stop scanning", variable=checkbox_scan_all_var, command=change_scan_all, bg=background_main, fg=foreground_main)
+    
+    scan_all_checkbox = tk.Checkbutton(window_frame, text="Don't stop scanning",command=change_scan_all)
     scan_all_checkbox.grid(row=1, column=0)
-
+    if allowimg:
+        allowimg_checkbox.select()
+    
     if scan_all:
-        scan_all_checkbox.select()
+        scan_all_checkbox.state(['selected'])
 
     # Create a LabelFrame to group the label and entries
     pins_frame = ttk.LabelFrame(window_frame, text="First and last pins to scan", padding=5, style="Custom.TLabelframe")
     pins_frame.grid(row=2, column=0, sticky="ew")
 
-    pins_frame_content = tk.Frame(pins_frame, bg=background_main)  # Separate frame for content with background color
+    pins_frame_content = ttk.Frame(pins_frame, style="Custom.TFrame", padding=5)  # Separate frame for content with background color
     pins_frame_content.pack(fill="both", expand=True)
 
-    first_pin_label = tk.Label(pins_frame_content, text="First pin:", bg=background_main, fg=foreground_main)
+    first_pin_label = ttk.Label(pins_frame_content, text="First pin:", style="Custom.TLabel")
     first_pin_label.grid(row=0, column=0)
 
-    first_pin_entry = tk.Entry(pins_frame_content, bg=background_main, fg=foreground_main)
+    first_pin_entry = ttk.Entry(pins_frame_content, style="Custom.TEntry")
     first_pin_entry.grid(row=0, column=1)
     first_pin_entry.insert(0, first_pin)
     first_pin_entry.bind("<Return>", on_enter_first_pin)
 
-    last_pin_label = tk.Label(pins_frame_content, text="Last pin:", bg=background_main, fg=foreground_main)
+    last_pin_label = ttk.Label(pins_frame_content, text="Last pin:", style="Custom.TLabel")
     last_pin_label.grid(row=1, column=0)
 
-    last_pin_entry = tk.Entry(pins_frame_content, bg=background_main, fg=foreground_main)
+    last_pin_entry = ttk.Entry(pins_frame_content, style="Custom.TEntry")
     last_pin_entry.grid(row=1, column=1)
     last_pin_entry.insert(0, last_pin)
     last_pin_entry.bind("<Return>", on_enter_last_pin)
@@ -501,7 +494,7 @@ def on_autodetect():
     autodetect_listbox.grid(row=0, column=1, rowspan=3, sticky="nsew")
 
     # Create a Scrollbar widget
-    autodetect_scrollbar = tk.Scrollbar(window_frame, command=autodetect_listbox.yview)
+    autodetect_scrollbar = ttk.Scrollbar(window_frame, command=autodetect_listbox.yview)
     autodetect_scrollbar.grid(row=0, column=2, rowspan=3, sticky="ns")
 
     # Configure the Listbox to use the Scrollbar
@@ -543,25 +536,25 @@ def on_settings():
     def on_checkbox_change(option):
         if option == 0:
             global allowtxt
-            allowtxt = not bool(allowtxt)
+            allowtxt = not allowtxt
             insert_log_error(1,f"Writing to a txt file is set to {bool(allowtxt)}")
 
         elif option == 1:
             global allowxl
-            allowxl = not bool(allowxl)
+            allowxl = not allowxl
             insert_log_error(1,f"Writing to a Excel file is set to {bool(allowxl)}")
         elif option == 2:
             global allowimg
-            allowimg = not bool(allowimg)
+            allowimg = not allowimg
             insert_log_error(1,f"Writing to an Image file is set to {bool(allowimg)}")
         elif option == 3:
             global allow_pulseio
-            allow_pulseio = not bool(allow_pulseio)
+            allow_pulseio = not allow_pulseio
             insert_log_error(1,f"Using Pulseio is set to {bool(allow_pulseio)}")
             init_device(0, device, pin, allow_pulseio) 
         elif option == 4:
             global reset_data
-            reset_data = not bool(reset_data)
+            reset_data = not reset_data
             insert_log_error(1,f"Reset data at startup is set to {bool(reset_data)}")
             
     def on_filename_entry_return(option, value):
@@ -652,17 +645,15 @@ def on_settings():
                 global pin_entry_var
                 global checkbox_allowpulseio_var
                 
-                tk_settings_info.set("Device and pin settings\n")
-                
-                settings_information_label = tk.Label(frame_right, textvariable=tk_settings_info, anchor="n", bg=background_main, fg=foreground_main)
-                settings_information_label.pack(fill="x")
+                main_frame = ttk.LabelFrame(frame_right, text="Device and pin settings", padding=5)
+                main_frame.pack(anchor="nw", fill="both")
                 
                 # Create a new frame to hold the OptionMenu widget
-                option_frame = tk.Frame(frame_right, bg=background_main)
-                option_frame.pack(fill="x")
+                change_device_frame = ttk.LabelFrame(main_frame, text="Change device", padding=5)
+                change_device_frame.pack(anchor="nw")
                 
                 device_options = ["DHT11", "DHT21", "DHT22"]
-                option_var = tk.StringVar(option_frame)
+                option_var = tk.StringVar(change_device_frame)
                 if args.debug:
                     insert_log_error(1,f"Select {selected_index[0]} (Device and pin settings)")
                     insert_log_error(1,f"Menu options: {device_options} current device: {dht_convert(device)}")
@@ -675,19 +666,17 @@ def on_settings():
                 elif dht_convert(device) == "DHT22":
                     option_var.set(device_options[2])  
                 
-                device_label_var = tk.StringVar(option_frame, f"Current device: ")
-                device_label = tk.Label(option_frame, textvariable=device_label_var, bg=background_main, fg=foreground_main)
+                device_label = ttk.Label(change_device_frame, text="Current device: ")
                 device_label.pack(side="left")
                       
-                option_menu = tk.OptionMenu(option_frame, option_var, *device_options, command=on_selection_changed)
+                option_menu = tk.OptionMenu(change_device_frame, option_var, *device_options, command=on_selection_changed)
                 option_menu.pack(side="left", anchor="w")
                 
                 # Create a new frame to hold the Entry widget
-                entry_frame = tk.Frame(frame_right, bg=background_main)
-                entry_frame.pack(fill="x")
+                entry_frame = ttk.LabelFrame(main_frame, text="Change pin", padding=5)
+                entry_frame.pack(anchor="nw")
                 
-                pin_label_var = tk.StringVar(entry_frame, f"Current pin: ")
-                pin_label = tk.Label(entry_frame, textvariable=pin_label_var, bg=background_main, fg=foreground_main)
+                pin_label = ttk.Label(entry_frame, text="Current pin")
                 pin_label.pack(side="left")
                 
                 # Pin Entry
@@ -702,39 +691,26 @@ def on_settings():
                 # Optional
                 
                 # Create a new frame to hold the optional widgets
-                optional_frame = tk.Frame(frame_right, bg=background_main)
-                optional_frame.pack(fill="x")
-                
-                optional_label_var = tk.StringVar(optional_frame, f"Optional:")
-                optional_label = tk.Label(optional_frame, textvariable=optional_label_var, bg=background_main, fg=foreground_main)
-                optional_label.pack(side="left")
+                optional_frame = ttk.LabelFrame(main_frame, text="Optional", padding=5)
+                optional_frame.pack(anchor="nw")
                 
                 checkbox_allowpulseio_var = tk.BooleanVar(value=bool(allow_pulseio))
                 
-                allowpulseio_checkbox = tk.Checkbutton(frame_right, text="Enable Pulseio", variable=checkbox_allowpulseio_var, command=lambda: on_checkbox_change(3), bg=background_main, fg=foreground_main)
+                allowpulseio_checkbox = tk.Checkbutton(optional_frame, text="Enable Pulseio", variable=checkbox_allowpulseio_var, command=lambda: on_checkbox_change(3))
                 allowpulseio_checkbox.pack(anchor="nw")
                 if allow_pulseio:
                     allowpulseio_checkbox.select()
                 # Create a new frame to hold the Auto detect widgets
-                autodetect_frame = tk.Frame(frame_right, bg=background_main)
+                autodetect_frame = ttk.LabelFrame(main_frame, text="Auto detect device", padding=5)
                 autodetect_frame.pack(fill="x")
                 
-                autodetect_frame_button = tk.Button(autodetect_frame, text ="Detect Device", command = on_autodetect, bg=background_button, fg=foreground_main)
+                autodetect_frame_button = tk.Button(autodetect_frame, text ="Detect Device", command = on_autodetect)
                 autodetect_frame_button.pack(side="left")
                 
             elif selected_index[0] == 1:
-                global allowtxt
-                global allowxl
-                global allowimg
                 
-                tk_settings_info.set("Save and Reset data settings\n")
-                tk_settings_desc.set("Save data to formats:")
-                tk_settings_desc_2.set("Change filenames")
-                settings_information_label = tk.Label(frame_right, textvariable=tk_settings_info, anchor="n", bg=background_main, fg=foreground_main)
-                settings_information_label.pack(fill="x")
-
-                settings_description_label = tk.Label(frame_right, textvariable=tk_settings_desc, anchor="nw", bg=background_main, fg=foreground_main)
-                settings_description_label.pack(fill="x")
+                data_frame = ttk.LabelFrame(frame_right, text="Save and Reset data settings", padding=5)
+                data_frame.pack(anchor="nw",fill="both")
 
                 if args.debug:
                     insert_log_error(1,f"Select {selected_index[0]} (Save and Reset data settings)")
@@ -744,46 +720,34 @@ def on_settings():
                     insert_log_error(1,f"txt_filename: {txt_filename}")
                     insert_log_error(1,f"excel_filename: {excel_filename}")
                     insert_log_error(1,f"img_filename: {img_filename}")
+                    insert_log_error(1,f"reset_data: {reset_data}")
+                    
                 # Create a new frame to hold the checkbutton widgets
-                checkbutton_frame = tk.Frame(frame_right, bg=background_main)
-                checkbutton_frame.pack(fill="x", anchor="w")
+                checkbutton_frame = ttk.LabelFrame(data_frame, text="Save data to formats:", padding=5)
+                checkbutton_frame.pack(anchor="nw")
 
-                checkbox_allowtxt_var = tk.BooleanVar(value=bool(allowtxt))
-                
-                allowtxt_checkbox = tk.Checkbutton(checkbutton_frame, text="txt file", variable=checkbox_allowtxt_var, command=lambda: on_checkbox_change(0), bg=background_main, fg=foreground_main)
+                allowtxt_checkbox = tk.Checkbutton(checkbutton_frame, text="txt file",command=lambda: on_checkbox_change(0))
                 allowtxt_checkbox.pack(anchor="w")
                 if allowtxt:
                     allowtxt_checkbox.select()
                 
-                checkbox_allowxl_var = tk.BooleanVar(value=bool(allowxl))
-                
-                allowxl_checkbox = tk.Checkbutton(checkbutton_frame, text="Excel file", variable=checkbox_allowxl_var, command=lambda: on_checkbox_change(1), bg=background_main, fg=foreground_main)
+                allowxl_checkbox = tk.Checkbutton(checkbutton_frame, text="Excel file",command=lambda: on_checkbox_change(1))
                 allowxl_checkbox.pack(anchor="w")
                 if allowxl:
                     allowxl_checkbox.select()
-                    
-                checkbox_allowimg_var = tk.BooleanVar(value=bool(allowimg))
                 
-                allowimg_checkbox = tk.Checkbutton(checkbutton_frame, text="Image file", variable=checkbox_allowimg_var, command=lambda: on_checkbox_change(2), bg=background_main, fg=foreground_main)
+                allowimg_checkbox = tk.Checkbutton(checkbutton_frame, text="Image file",command=lambda: on_checkbox_change(2))
                 allowimg_checkbox.pack(anchor="w")
                 if allowimg:
                     allowimg_checkbox.select()
                 
-                settings_description_2_label = tk.Label(frame_right, textvariable=tk_settings_desc_2, anchor="w", bg=background_main, fg=foreground_main)
-                settings_description_2_label.pack(fill="x")
-                
                 # Create a new frame to hold the Entry widgets
-                entry_frame = tk.Frame(frame_right, bg=background_main)
-                entry_frame.pack(fill="x")
-                
-
-                txt_filename_label_var = tk.StringVar(entry_frame, "Current txt filename: ")
-                excel_filename_label_var = tk.StringVar(entry_frame, "Current Excel filename: ")
-                img_filename_label_var = tk.StringVar(entry_frame, "Current Image filename: ")
+                entry_frame = ttk.LabelFrame(data_frame, text="Change filenames", padding=5)
+                entry_frame.pack(anchor="nw")          
                 
                 # Change filename for txt
-                txt_filename_label_var = tk.Label(entry_frame, textvariable=txt_filename_label_var, bg=background_main, fg=foreground_main)
-                txt_filename_label_var.pack(anchor="w")
+                txt_filename_label = ttk.Label(entry_frame, text="Current txt filename: ")
+                txt_filename_label.pack(anchor="w")
                 
                 # txt Entry
                 txt_filename_entry_var = tk.StringVar(entry_frame)
@@ -795,8 +759,8 @@ def on_settings():
                 txt_filename_entry.bind("<Return>", lambda event: on_filename_entry_return(0, txt_filename_entry_var))   
                 
                 # Change filename for Excel
-                excel_filename_label_var = tk.Label(entry_frame, textvariable=excel_filename_label_var, bg=background_main, fg=foreground_main)
-                excel_filename_label_var.pack(anchor="w")
+                excel_filename_label = tk.Label(entry_frame, text="Current Excel filename: ")
+                excel_filename_label.pack(anchor="w")
                 
                 # excel Entry
                 excel_filename_entry_var = tk.StringVar(entry_frame)
@@ -808,8 +772,8 @@ def on_settings():
                 excel_filename_entry.bind("<Return>", lambda event: on_filename_entry_return(1, excel_filename_entry_var))
                 
                 # Change filename for Image
-                img_filename_label_var = tk.Label(entry_frame, textvariable=img_filename_label_var, bg=background_main, fg=foreground_main)
-                img_filename_label_var.pack(anchor="w")
+                img_filename_label = ttk.Label(entry_frame, text="Current Image filename: ")
+                img_filename_label.pack(anchor="w")
                 
                 # excel Entry
                 img_filename_entry_var = tk.StringVar(entry_frame)
@@ -821,19 +785,12 @@ def on_settings():
                 img_filename_entry.bind("<Return>", lambda event: on_filename_entry_return(2, img_filename_entry_var))    
                 
                 # Create a new frame to hold the optional widgets
-                optional_frame = tk.Frame(frame_right, bg=background_main)
-                optional_frame.pack(fill="x")
+                optional_frame = ttk.LabelFrame(data_frame, text="Optional", padding=5)
+                optional_frame.pack(anchor="nw")
                 
-                optional_label_var = tk.StringVar(optional_frame, f"Optional")
-                optional_label = tk.Label(optional_frame, textvariable=optional_label_var, bg=background_main, fg=foreground_main)
-                optional_label.pack(side="left")                
-                # Create a new frame to hold the reset data widgets
-                reset_data_frame = tk.Frame(frame_right, bg=background_main)
-                reset_data_frame.pack(fill="x", anchor="w")
-
-                reset_data_var = tk.BooleanVar(value=bool(allowtxt))
+                reset_data_var = tk.BooleanVar()
                 
-                reset_data_checkbox = tk.Checkbutton(reset_data_frame, text="Reset data at startup", variable=reset_data_var, command=lambda: on_checkbox_change(4), bg=background_main, fg=foreground_main)
+                reset_data_checkbox = tk.Checkbutton(optional_frame,variable=reset_data_var, text="Reset data at startup",command=lambda: on_checkbox_change(4))
                 reset_data_checkbox.pack(anchor="w")
                 if reset_data:
                     reset_data_checkbox.select()
@@ -848,13 +805,8 @@ def on_settings():
                 global delay_decrease_button
                 global select_theme
                 
-                tk_settings_info.set("General\n")
-                tk_settings_desc.set("Change temperature unit")
-                settings_information_label = tk.Label(frame_right, textvariable=tk_settings_info, anchor="n", bg=background_main, fg=foreground_main)
-                settings_information_label.pack(fill="x")
-
-                settings_description_label = tk.Label(frame_right, textvariable=tk_settings_desc, anchor="nw", bg=background_main, fg=foreground_main)
-                settings_description_label.pack(fill="x")
+                general_frame = ttk.LabelFrame(frame_right, text="General settings", padding=5)
+                general_frame.pack(anchor="nw",fill="both")
                 
                 if args.debug:
                     insert_log_error(1,f"Select {selected_index[0]} (General)")
@@ -862,13 +814,13 @@ def on_settings():
                     insert_log_error(1,f"graph_show: {graph_show}")
                     insert_log_error(1,f"old_delay_sec: {old_delay_sec}")
                     insert_log_error(1,f"select_theme: {select_theme}")
+                
                 # Change temperature unit
-                
+                temperature_unit_frame = ttk.LabelFrame(general_frame, text="Change temperature unit", padding=5)
+                temperature_unit_frame.pack(anchor="nw")
                 # Create a new frame to hold the temperature unit change widgets
-                temperature_unit_frame = tk.Frame(frame_right, bg=background_main)
-                temperature_unit_frame.pack(fill="x")
                 
-                temperature_unit_label = tk.Label(temperature_unit_frame, text="Unit:", bg=background_main, fg=foreground_main)
+                temperature_unit_label = ttk.Label(temperature_unit_frame, text="Unit: ")
                 temperature_unit_label.pack(side="left")
                 
                 c_unit_button = tk.Button(temperature_unit_frame, text ="°C", command = lambda: change_temperature_unit("C"), bg=background_button, fg=foreground_main)
@@ -880,12 +832,8 @@ def on_settings():
                 c_unit_button.config(relief=tk.SUNKEN if temperature_unit == "C" else tk.RAISED)
                 f_unit_button.config(relief=tk.SUNKEN if temperature_unit == "F" else tk.RAISED)
                 
-                settings_description_2_label = tk.Label(frame_right, text="Change graph", anchor="nw", bg=background_main, fg=foreground_main)
-                settings_description_2_label.pack(fill="x")
-                
-                # Create a new frame to hold the graph change widgets
-                graph_change_frame = tk.Frame(frame_right, bg=background_main)
-                graph_change_frame.pack(fill="x")
+                graph_change_frame = ttk.LabelFrame(general_frame, text="Change graph", padding=5)
+                graph_change_frame.pack(anchor="nw")
                 
                 T_graph_change_button = tk.Button(graph_change_frame, text ="Only Temperature", command = lambda: change_graph("T"), bg=background_button, fg=foreground_main)
                 T_graph_change_button.pack(side="left")
@@ -899,12 +847,8 @@ def on_settings():
                 T_H_graph_change_button.config(relief=tk.SUNKEN if graph_show == "Both" else tk.RAISED)
                 H_graph_change_button.config(relief=tk.SUNKEN if graph_show == "Humidity" else tk.RAISED)
                 
-                settings_delay_label = tk.Label(frame_right, text="Change delay", anchor="nw", bg=background_main, fg=foreground_main)
-                settings_delay_label.pack(fill="x")
-                
-                # Create a new frame to hold the delay change widgets
-                delay_change_frame = tk.Frame(frame_right, bg=background_main)
-                delay_change_frame.pack(fill="x")
+                delay_change_frame = ttk.LabelFrame(general_frame, text="Change delay", padding=5)
+                delay_change_frame.pack(anchor="nw")
                 
                 delay_decrease_button = tk.Button(delay_change_frame, text ="-", command = lambda: on_change_delay(old_delay_sec-1),bg=background_button, fg=foreground_main)
                 delay_decrease_button.pack(side="left")
@@ -922,9 +866,9 @@ def on_settings():
                 delay_increase_button.pack(side="left")
                 
                 # Create a new frame to hold the theme change widgets
-                theme_change_frame = tk.Frame(frame_right, bg=background_main)
-                theme_change_frame.pack(fill="x")
-                
+                theme_change_frame = ttk.LabelFrame(general_frame, text="Change theme", padding=5)
+                theme_change_frame.pack(anchor="nw")
+                                
                 themes_options = ["Default (white)", "Default (black)", "Classic (black)", "Classic (Blue)"]
                 option_var = tk.StringVar(theme_change_frame)
                 if select_theme == 0: # Set the default option (depends on the select_theme variable)
@@ -936,14 +880,13 @@ def on_settings():
                 elif select_theme == 3:
                     option_var.set(themes_options[3]) 
                     
-                theme_label_var = tk.StringVar(theme_change_frame, f"Current theme: ")
-                theme_label = tk.Label(theme_change_frame, textvariable=theme_label_var, bg=background_main, fg=foreground_main)
+                theme_label = ttk.Label(theme_change_frame, text="Current theme: ")
                 theme_label.pack(side="left")
                       
                 option_menu = tk.OptionMenu(theme_change_frame,option_var,*themes_options,command=lambda selected_value: on_theme_select(selected_value))
 
                 option_menu.pack(fill="x", anchor="w")
-                11
+                
                 # Set the initial relief of the buttons based on the current graph_show
                 delay_decrease_button.config(relief=tk.SUNKEN if old_delay_sec <= 1 else tk.RAISED)
                 
@@ -960,9 +903,9 @@ def on_settings():
 
 
     # Set the minimum size for the window (width, height)
-    settings_window.minsize(600, 350)
+    settings_window.minsize(600, 200)
     settings_window.maxsize(800, 600)
-
+    settings_window.resizable(False, False)
     settings_width = settings_window.winfo_width()
     settings_height = settings_window.winfo_height()
 
