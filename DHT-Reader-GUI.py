@@ -1,4 +1,4 @@
-#DHT Reader v0.3 by D3SXX
+#DHT Reader v0.3 hotfix 1 by D3SXX
 
 try:
     import os
@@ -82,6 +82,15 @@ def read_and_write_config(flag, select_theme, temperature_unit, device,pin, allo
         config = configparser.ConfigParser()
 
         try:
+            # Check if config file is empty
+            try:
+                open(config_file, 'r')
+                if os.path.getsize(config_file) <= 1:
+                    print(f"Config file {config_file} is empty, using default values")
+                    return select_theme, temperature_unit, dht_convert(device),pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename  
+            except:
+                print(f"Config file {config_file} doesn't exist, using default values")
+                return select_theme, temperature_unit, dht_convert(device),pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename  
             # Read the configuration file
             config.read(config_file)
 
@@ -404,7 +413,8 @@ args = parser.parse_args()
 if not args.skip:
     flag = 2
     select_theme, temperature_unit, device, pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename = read_and_write_config(flag, select_theme, temperature_unit, device, pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename)
-
+else:
+    device = dht_convert(device)
 init_device(1, device, pin, allow_pulseio)
 change_theme(select_theme)
 
