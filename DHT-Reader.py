@@ -1,4 +1,4 @@
-#DHT Reader v0.28 by D3SXX
+#DHT Reader v0.29 by D3SXX
 
 try:
     import os
@@ -84,6 +84,16 @@ def read_and_write_config(flag, select_theme, temperature_unit, device,pin, allo
         config = configparser.ConfigParser()
 
         try:
+            # Check if config file is empty
+            try:
+                open(config_file, 'r')
+                if os.path.getsize(config_file) <= 1:
+                    print(f"Config file {config_file} is empty, using default values")
+                    return select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename  
+            except:
+                print(f"Config file {config_file} doesn't exist, using default values")
+                return select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename  
+            
             # Read the configuration file
             config.read(config_file)
 
@@ -108,7 +118,7 @@ def read_and_write_config(flag, select_theme, temperature_unit, device,pin, allo
             return select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename   
         except configparser.Error as e:
             raise SystemExit(f"Error reading config file! {e}")
-            
+
 # Create an Excel file and an Image
 def write_to_xl(temperature, humidity,excel_filename, img_filename, flag):
     # flag == 1 -> allow only xl, flag == 2 allow only image, flag == 3 allow both
@@ -230,7 +240,7 @@ def main(stdscr):
     parser = argparse.ArgumentParser(description='A DHT-Reader CLI Interface')
     parser.add_argument('--skip', action='store_true', help='Skip config check')
     parser.add_argument('--debug', action='store_true', help='Show debug info')
-    
+    parser.add_argument('--autodetect', action='store_true', help='Auto detect device')    
     args = parser.parse_args()
     
     # Default values
@@ -316,6 +326,108 @@ def main(stdscr):
                 return tuple(self.window_data[window_name].values())
             else:
                 raise ValueError(f"Window '{window_name}' does not exist.")
+    
+    def auto_detect(flag = 0, scan_all = 1, first_pin = 0, last_pin = 20):
+        global dhtDevice
+        logs_list = []
+        pin = 0
+        allow_pulseio = 1
+        y = 0
+        height, width = stdscr.getmaxyx()
+        devices = ["DHT11","DHT21","DHT22"]
+        if flag == 1:
+            if last_pin >= 7 and last_pin < 8:
+                cut_val = 6
+            elif last_pin >= 8:
+                cut_val = 12
+            else:
+                cut_val = 0
+            if first_pin > 0:
+                val = first_pin
+            else:
+                val = 0
+            progress_bar = 0
+            max_value_pg = (last_pin+1-first_pin)*3*2-cut_val+val
+        for current_device in devices:
+            msg = f"Checking the {current_device}"
+            if flag != 1:
+                stdscr.addstr(y, 0, msg,curses.A_BOLD)
+                stdscr.refresh()
+                y += 1
+            else:
+                logs_list.append(msg)
+            device = dht_convert(current_device) # maybe remove
+            for allow_pulseio in range(1,-1,-1):
+                msg = f"Pulseio is set to {bool(allow_pulseio)}"
+                if flag != 1:
+                    stdscr.addstr(y, 0, msg,curses.A_BOLD)
+                    stdscr.refresh()
+                    y += 1
+                else:
+                    logs_list.append(msg)
+                for pin in range(first_pin,last_pin+1):
+                    try:
+                        if pin == 7 or pin == 8:
+                            continue
+                        if flag == 1:
+                            dhtDevice.exit()
+                        pin_value = getattr(board, "D" + str(pin))
+                        dhtDevice = device(pin_value, bool(allow_pulseio))
+                        msg = f"Checking pin {pin}"
+                        if flag != 1:
+                            if y+3 >= height:
+                                y=0
+                                stdscr.clear()
+                            stdscr.addstr(y, 0, msg,curses.A_BOLD)
+                            stdscr.refresh()
+                            y += 1
+                        else:
+                            logs_list.append(msg)
+                            progress_bar += 1
+                        temperature = dhtDevice.temperature
+                        humidity = dhtDevice.humidity
+                        if flag != 1:
+                                stdscr.addstr(y, 0, f"{temperature},{humidity}",curses.A_BOLD)
+                                stdscr.refresh()
+                                y += 1
+                        else:
+                            logs_list.append(f"{temperature},{humidity}")
+                        msg = f"Detected {current_device} at pin {pin} (Pulseio is set to {bool(allow_pulseio)})"
+                        if flag != 1:
+                            stdscr.addstr(y, 0, msg,curses.A_BOLD)
+                            stdscr.refresh()
+                            time.sleep(2)
+                            y += 1
+                        else:
+                            logs_list.append(msg)
+                            if scan_all != 0:
+                                progress_bar = max_value_pg
+                        if scan_all == 0:
+                            return 0
+                    except RuntimeError as error:
+                        if str(error) == "DHT sensor not found, check wiring":
+                            dhtDevice.exit()
+                            if flag == 1:
+                                print(f"Error: {error}")
+                            else:
+                                logs_list.append(error)
+                        else:
+                            if flag == 1:
+                                print(f"Error: {error}")
+                            else:
+                                logs_list.append(error)
+                            msg = f"Detected {current_device} at pin {pin} (Pulseio is set to {bool(allow_pulseio)})"
+                            if flag != 1:
+                                stdscr.addstr(y, 0, msg,curses.A_BOLD)
+                                stdscr.refresh()
+                                time.sleep(1)
+                                y += 1
+                            else:
+                                logs_list.append(msg)
+                            if scan_all != 0:
+                                progress_bar = max_value_pg
+                            if scan_all == 0:
+                                return 0
     
     def cli_check_config_file():
         config_file = 'dhtreader.ini'
@@ -633,7 +745,6 @@ def main(stdscr):
         
         scale_factor = (max_value-min_value)/(box_height-2)
                     
-                        
         # Generate scaled values for demonstration
         scaled_values = [int(scale_factor * value) for value in range(box_height - 2, -1, -1)]
                         
@@ -1100,13 +1211,17 @@ def main(stdscr):
         elif cfg == True:
             flag = 2
             select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename = read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename,excel_filename, img_filename)
-
+    if args.autodetect:
+        auto_detect(0,0)
+        global dhtDevice
+    else:
+        # Initial the dht device, with data pin connected to:
+        pin_value = getattr(board, "D" + str(pin))
+        dhtDevice = device(pin_value, bool(allow_pulseio))
     # Apply theme from config
     cli_themes(select_theme)
     
-    # Initial the dht device, with data pin connected to:
-    pin_value = getattr(board, "D" + str(pin))
-    dhtDevice = device(pin_value, bool(allow_pulseio))
+
     
     # Array for holding temperature and humidity
     temperature_hold = []
