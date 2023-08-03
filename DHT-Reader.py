@@ -1,4 +1,4 @@
-#DHT Reader v0.29 by D3SXX
+#DHT Reader v0.30 by D3SXX
 
 try:
     import os
@@ -329,105 +329,68 @@ def main(stdscr):
     
     def auto_detect(flag = 0, scan_all = 1, first_pin = 0, last_pin = 20):
         global dhtDevice
-        logs_list = []
+        y = 1
         pin = 0
         allow_pulseio = 1
-        y = 0
         height, width = stdscr.getmaxyx()
         devices = ["DHT11","DHT21","DHT22"]
         if flag == 1:
-            if last_pin >= 7 and last_pin < 8:
-                cut_val = 6
-            elif last_pin >= 8:
-                cut_val = 12
-            else:
-                cut_val = 0
-            if first_pin > 0:
-                val = first_pin
-            else:
-                val = 0
-            progress_bar = 0
-            max_value_pg = (last_pin+1-first_pin)*3*2-cut_val+val
+            dhtDevice.exit()
         for current_device in devices:
             msg = f"Checking the {current_device}"
-            if flag != 1:
-                stdscr.addstr(y, 0, msg,curses.A_BOLD)
-                stdscr.refresh()
-                y += 1
-            else:
-                logs_list.append(msg)
+            stdscr.addstr(y, 0, msg,curses.A_BOLD)
+            stdscr.refresh()
+            y += 1
             device = dht_convert(current_device) # maybe remove
             for allow_pulseio in range(1,-1,-1):
                 msg = f"Pulseio is set to {bool(allow_pulseio)}"
-                if flag != 1:
-                    stdscr.addstr(y, 0, msg,curses.A_BOLD)
-                    stdscr.refresh()
-                    y += 1
-                else:
-                    logs_list.append(msg)
+                stdscr.addstr(y, 0, msg,curses.A_BOLD)
+                stdscr.refresh()
+                y += 1
                 for pin in range(first_pin,last_pin+1):
                     try:
                         if pin == 7 or pin == 8:
                             continue
-                        if flag == 1:
-                            dhtDevice.exit()
                         pin_value = getattr(board, "D" + str(pin))
                         dhtDevice = device(pin_value, bool(allow_pulseio))
                         msg = f"Checking pin {pin}"
-                        if flag != 1:
-                            if y+3 >= height:
-                                y=0
-                                stdscr.clear()
-                            stdscr.addstr(y, 0, msg,curses.A_BOLD)
-                            stdscr.refresh()
-                            y += 1
-                        else:
-                            logs_list.append(msg)
-                            progress_bar += 1
+                        if y+3 >= height:
+                            y=1
+                            stdscr.clear()
+                        stdscr.addstr(y, 0, msg,curses.A_BOLD)
+                        stdscr.refresh()
+                        y += 1
                         temperature = dhtDevice.temperature
                         humidity = dhtDevice.humidity
-                        if flag != 1:
-                                stdscr.addstr(y, 0, f"{temperature},{humidity}",curses.A_BOLD)
-                                stdscr.refresh()
-                                y += 1
-                        else:
-                            logs_list.append(f"{temperature},{humidity}")
+                        stdscr.addstr(y, 0, f"{temperature},{humidity}",curses.A_BOLD)
+                        stdscr.refresh()
+                        y += 1
                         msg = f"Detected {current_device} at pin {pin} (Pulseio is set to {bool(allow_pulseio)})"
-                        if flag != 1:
-                            stdscr.addstr(y, 0, msg,curses.A_BOLD)
-                            stdscr.refresh()
-                            time.sleep(2)
-                            y += 1
-                        else:
-                            logs_list.append(msg)
-                            if scan_all != 0:
-                                progress_bar = max_value_pg
+                        stdscr.addstr(y, 0, msg,curses.A_BOLD)
+                        stdscr.refresh()
+                        time.sleep(2)
+                        y += 1
                         if scan_all == 0:
-                            return 0
+                            return dht_convert(current_device), pin, allow_pulseio
+                        else:
+                            dhtDevice.exit()
                     except RuntimeError as error:
                         if str(error) == "DHT sensor not found, check wiring":
                             dhtDevice.exit()
-                            if flag == 1:
-                                print(f"Error: {error}")
-                            else:
-                                logs_list.append(error)
+                            stdscr.addstr(y, 0, str(error),curses.A_BOLD)
+                            y += 1
                         else:
-                            if flag == 1:
-                                print(f"Error: {error}")
-                            else:
-                                logs_list.append(error)
+                            stdscr.addstr(y, 0, str(error),curses.A_BOLD)
+                            y += 1
                             msg = f"Detected {current_device} at pin {pin} (Pulseio is set to {bool(allow_pulseio)})"
-                            if flag != 1:
-                                stdscr.addstr(y, 0, msg,curses.A_BOLD)
-                                stdscr.refresh()
-                                time.sleep(1)
-                                y += 1
-                            else:
-                                logs_list.append(msg)
-                            if scan_all != 0:
-                                progress_bar = max_value_pg
+                            stdscr.addstr(y, 0, msg,curses.A_BOLD)
+                            stdscr.refresh()
+                            time.sleep(1)
+                            y += 1
                             if scan_all == 0:
-                                return 0
+                                return dht_convert(current_device), pin, allow_pulseio
+                            else:
+                                dhtDevice.exit()
     
     def cli_check_config_file():
         config_file = 'dhtreader.ini'
@@ -642,13 +605,9 @@ def main(stdscr):
             bottom_y -= 1
         
         # Draw bottom bar
-        bottom_msg = "Press Q to (Q)uit | S to open (S)ettings | C to (C)hange graph | T to skip delay"
-        # cut is used to remove letters when the width is smaller than the string
-        cut = len(bottom_msg)
-        if len(bottom_msg) > width:
-            cut = len(bottom_msg) - (len(bottom_msg) - width)
+        bottom_msg = "Press Q to (Q)uit | S to open (S)ettings | C to (C)hange graph | T to skip a countdown cycle"
             
-        stdscr.addstr(bottom_y, bottom_x,bottom_msg[:cut], curses.A_BOLD)
+        stdscr.addstr(bottom_y, bottom_x,bottom_msg[0:width-1], curses.A_BOLD)
     
     def cli_info_box(xl_info_amount):
         
@@ -876,6 +835,8 @@ def main(stdscr):
         
     def cli_settings_menu(select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename,excel_filename, img_filename):
         
+        curses.set_escdelay(25)
+        
         # Flag is only changed if configuration was changed
         flag = 0
         
@@ -886,7 +847,7 @@ def main(stdscr):
         pos_x = 1
         select = 0
         while True:
-            settings = ["Change theme","Change configuration",f"Change temperature unit (°{temperature_unit})" ,"Exit"]
+            settings = ["Change theme","Change configuration",f"Change temperature unit (°{temperature_unit})" ,"Auto detect device","Exit"]
             stdscr.clear()
             height, width = stdscr.getmaxyx()
             draw_box(0, 0, width-1, height-1)
@@ -908,7 +869,7 @@ def main(stdscr):
             key = stdscr.getch()
 
             # Exit the loop
-            if key == ord('q') or key == ord('Q'):
+            if key == ord('q') or key == ord('Q') or key == 27:
                 new_values = [select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename,excel_filename, img_filename]
                 if old_values != new_values:
                     flag = 1
@@ -960,7 +921,7 @@ def main(stdscr):
                         
                         # Get user input
                         key = stdscr.getch()
-                        if key == ord('q') or key == ord('Q'):
+                        if key == ord('q') or key == ord('Q') or key == 27:
                             break
                         elif key == curses.KEY_LEFT:
                             if select_theme > 0 and line == 0:
@@ -979,9 +940,8 @@ def main(stdscr):
                             if not line > len(options)-2:
                                 line += 1
                         elif key == ord('\t'):
-                            if line == 0:
-                                line = 1
-                            else:
+                            line += 1
+                            if line >= 3:
                                 line = 0
                         elif key == ord('\n'):
                             if line == 1:
@@ -1005,7 +965,7 @@ def main(stdscr):
                                     stdscr.addstr(box_y+1, box_x+1, "Errors",curses.color_pair(4))
                                     key = stdscr.getch()
                                     
-                                    if key == ord('\n') or key == ord('q') or key == ord('Q'):
+                                    if key == ord('\n') or key == ord('q') or key == ord('Q') or key == 27:
                                         break
                                     elif key == curses.KEY_LEFT:
                                         if select_theme > 0:
@@ -1036,7 +996,7 @@ def main(stdscr):
                         
                         # Get user input
                         key = stdscr.getch()
-                        if key == ord('q') or key == ord('Q'):
+                        if key == ord('q') or key == ord('Q') or key == 27:
                             break
                         elif key == curses.KEY_LEFT:
                             if line == 0:
@@ -1093,9 +1053,8 @@ def main(stdscr):
                             if not line > len(options)-2:
                                 line += 1
                         elif key == ord('\t'):
-                            if line == 0:
-                                line = 1
-                            else:
+                            line += 1
+                            if line > len(options)-1:
                                 line = 0
                         elif key == ord('\n'):
                             if line == len(options)-1:
@@ -1189,13 +1148,107 @@ def main(stdscr):
                             temperature_unit = "F"
                         else:
                             temperature_unit = "C"
+                
+                elif select == 3:
+                    scan_all = 0
+                    first_pin = 0
+                    last_pin = 20
+                    highlight = [curses.color_pair(7),curses.A_BOLD,curses.A_BOLD,curses.A_BOLD,curses.A_BOLD]
+                    line = 0
+                    scan_all_char = " "
+                    while True:
+                        options = [f"Start pin {first_pin}",f"Last pin {last_pin}",f"[{scan_all_char}] Don't stop scanning","Start","Exit"]
+                        stdscr.clear()
+                        height, width = stdscr.getmaxyx()
+                        box_width = int(width * 0.4)
+                        box_height = int(height * 0.4)
+                        if height > 25:
+                            draw_box(height//2-(box_height // 2), width//2-(box_width // 2), box_width, box_height)
+                        if args.debug:
+                            debug_msg_1 = f"width: {width} height: {height} line: {line} scan_all : {scan_all}"
+                            stdscr.addstr(height-1, 1, debug_msg_1, curses.A_BOLD)
+                        box_title = "Auto detect device"
+                        stdscr.addstr(int(height*0.40), width//2-len(box_title)//2,box_title)
+                        
+                        for i in range(0,len(options)):
+                            if line != i:
+                                highlight[i] = curses.A_BOLD
+                            else:
+                                highlight[i] = curses.color_pair(7)
+
+                        stdscr.addstr(int(height*0.40)+3, width//2-len(options[0])//2, options[0], highlight[0])
+                        stdscr.addstr(int(height*0.40)+4, width//2-len(options[1])//2, options[1], highlight[1])
+                        stdscr.addstr(int(height*0.40)+5, width//2-len(options[2])//2, options[2], highlight[2])
+                        stdscr.addstr(int(height*0.40)+7, width//2-int(box_width // 3), options[3], highlight[3])
+                        stdscr.addstr(int(height*0.40)+7, width//2+int(box_width // 3)-len(options[4]), options[4], highlight[4])
+
+                        # Get user input
+                        key = stdscr.getch()
+                        if key == ord('q') or key == ord('Q') or key == 27:
+                            break
+                        elif key == curses.KEY_LEFT:
+                            if line == 4 and line > 2:
+                                line -= 1
+                        elif key == curses.KEY_RIGHT:
+                            if line == 3 and line < 4:
+                                line += 1
+                        elif key == curses.KEY_UP:
+                            if line > 0:
+                                line -= 1
+                        elif key == curses.KEY_DOWN:
+                            if not line > len(options)-2:
+                                line += 1
+                        elif key == ord('\t'):
+                            line += 1
+                            if line > len(options)-1:
+                                line = 0
+                        elif key == ord('\n'):
+                            if line == 0:
+                                new_pin = ""
+                                while True:
+                                    stdscr.refresh()
+                                    stdscr.addstr(int(height*0.40)+3, width//2-len(options[0])//2+len(options[0])-len(str(first_pin)),f"[{first_pin}]", curses.color_pair(7))
+                                    enter = stdscr.getstr().decode()
+                                    if enter == "":
+                                        break
+                                    else:
+                                        new_pin += enter
+                                        first_pin = int(new_pin)
+                            elif line == 1:
+                                new_pin = ""
+                                while True:
+                                    stdscr.refresh()
+                                    stdscr.addstr(int(height*0.40)+4, width//2-len(options[1])//2+len(options[1])-len(str(last_pin)),f"[{last_pin}]", curses.color_pair(7))
+                                    enter = stdscr.getstr().decode()
+                                    if enter == "":
+                                        break
+                                    else:
+                                        new_pin += enter
+                                        last_pin = int(new_pin)
+                            elif line == 2:
+                                scan_all = int(not scan_all)
+                                if scan_all == 0:
+                                    scan_all_char = " "
+                                else:
+                                    scan_all_char = "X"
+                            elif line == 3:
+                                stdscr.clear()
+                                auto_detect(1,scan_all, first_pin, last_pin)
+                            elif line == 4:
+                                break                       
+                        stdscr.refresh()
+                        
                 elif select == len(settings)-1:
                     new_values = [select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment,txt_filename, excel_filename, img_filename]
                     if old_values != new_values:
                         flag = 1
                     return select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data,graph_environment, txt_filename, excel_filename, img_filename, flag
                 pos_x = 1
-
+            
+            elif key == ord('\t'):
+                pos_y += 1
+            if pos_y > len(settings)+1:
+                pos_y = 2
             # Refresh the screen
             stdscr.refresh()
     
@@ -1212,7 +1265,7 @@ def main(stdscr):
             flag = 2
             select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename = read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename,excel_filename, img_filename)
     if args.autodetect:
-        auto_detect(0,0)
+        device, pin, allow_pulseio = auto_detect(0,0)
         global dhtDevice
     else:
         # Initial the dht device, with data pin connected to:
@@ -1365,8 +1418,22 @@ def main(stdscr):
                     info_xl.extend(write_to_xl(temperature,humidity,excel_filename,img_filename,flag))
             
         except Exception as error:
-                dhtDevice.exit()
-                raise SystemExit(error)
+                if str(error) == "addwstr() returned ERR":
+                    stdscr.clear()
+                    height, width = stdscr.getmaxyx()
+                    msg = f"The window {width}x{height} is too small"
+                    box_width = int(len(msg)+2)
+                    box_height = 2
+                    if width > 28:
+                        draw_box(height//2-(box_height // 2), width//2-(box_width // 2), box_width, box_height)
+                        stdscr.addstr(height//2, width//2-len(msg)//2,msg, curses.A_BOLD)
+                    else:
+                        stdscr.addstr(0, 0,msg, curses.A_BOLD)
+                    stdscr.refresh()
+                    time.sleep(0.1)
+                else:
+                    dhtDevice.exit()
+                    raise SystemExit(error)
         except KeyboardInterrupt:
                 raise SystemExit
     
