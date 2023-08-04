@@ -1,4 +1,4 @@
-#DHT Reader v0.3 hotfix 1 by D3SXX
+#DHT Reader v0.3 hotfix 2 by D3SXX
 
 try:
     import os
@@ -470,8 +470,6 @@ def on_autodetect():
     
     scan_all_checkbox = tk.Checkbutton(window_frame, text="Don't stop scanning",command=change_scan_all)
     scan_all_checkbox.grid(row=1, column=0)
-    if allowimg:
-        allowimg_checkbox.select()
     
     if scan_all:
         scan_all_checkbox.state(['selected'])
