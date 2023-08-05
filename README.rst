@@ -2,7 +2,7 @@
 DHT-Reader
 ==============
 
-A Python cli program for scanning and analyzing data from DHT11, DHT21, and DHT22 sensors. The program can record data into a text file, Excel file, and a PNG image.
+A Python program for scanning and analyzing data from DHT11, DHT21, and DHT22 sensors. The program can record data in text, Excel, and PNG image formats.
 
 Introduction
 ------------
@@ -17,8 +17,22 @@ To use DHT-Reader, you will need the following:
 - Raspberry Pi (supported models: Raspberry Pi 4 (tested), Raspberry Pi 3 Model B/B+, Raspberry Pi 2 Model B, Raspberry Pi Model B+, Raspberry Pi Zero)
 - DHT11, DHT21, or DHT22 temperature-humidity sensor
 
+Usage
+-----
+
+1. Visit the `releases page <https://github.com/D3SXX/DHT-Reader/releases>`_ to find the latest version.
+2. Download the preferred one and run it.
+
+- There are 2 versions of the program that are maintained - DHT-Reader and DHT-Reader-GUI
+- The main difference between both versions is that DHT-Reader-GUI uses Tkinter to draw a Graphical interface, while DHT-Reader uses Command-Line curses
+
+Building
+--------
+
 Dependencies
 ------------
+
+- Python 3 (tested on Python 3.9.2)
 
 DHT-Reader depends on the following Python libraries:
 
@@ -26,10 +40,9 @@ DHT-Reader depends on the following Python libraries:
 - `matplotlib <https://github.com/matplotlib/matplotlib>`_
 - `XlsxWriter <https://github.com/jmcnamara/XlsxWriter>`_
 
-Usage
------
+For building use `pyinstaller <https://github.com/pyinstaller/pyinstaller>`_
 
-Follow the instructions below to use DHT-Reader:
+Follow the instructions below to build DHT-Reader:
 
 1. Install the DHT sensor library by following the instructions in `Adafruit_CircuitPython_DHT repository <https://github.com/adafruit/Adafruit_CircuitPython_DHT>`_.
 
@@ -37,10 +50,44 @@ Follow the instructions below to use DHT-Reader:
 
 .. code-block:: shell
 
-    pip3 install matplotlib xlsxwriter
+    pip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter pyinstaller
 
-3. Fetch the latest version of DHT-Reader.py from the releases.
+3. Clone/Download the repository.
 
-4. On the first startup, the program will ask whether to create a new config file ('dhtreader.ini'). You can choose 'y' for yes or 'n' for no. If you select 'n' or just press Enter, default values will be used.
+.. code-block:: shell
 
-5. Run the program and start reading data from the DHT sensor.
+    git clone https://github.com/D3SXX/DHT-Reader.git
+
+4. Build the desired program
+
+- To build DHT-Reader.py
+.. code-block:: shell
+
+    pyinstaller --onefile --add-binary "/usr/local/lib/python3.9/dist-packages/adafruit_blinka/microcontroller/bcm283x/pulseio/libgpiod_pulsein64:adafruit_blinka/microcontroller/bcm283x/pulseio/" DHT-Reader.py
+
+- To build DHT-Reader-GUI.py
+
+.. code-block:: shell
+
+    pyinstaller --onefile --add-binary "/usr/local/lib/python3.9/dist-packages/adafruit_blinka/microcontroller/bcm283x/pulseio/libgpiod_pulsein64:adafruit_blinka/microcontroller/bcm283x/pulseio/" --hidden-import='PIL._tkinter_finder'  DHT-Reader_Tkinter.py
+
+
+5. Go to the dist folder
+
+.. code-block:: shell
+
+    cd dist
+
+6. Launch the executable
+
+- To launch DHT-Reader
+
+.. code-block:: shell
+
+    ./DHT-Reader
+
+- To launch DHT-Reader-GUI
+
+.. code-block:: shell
+
+    ./DHT-Reader-GUI
