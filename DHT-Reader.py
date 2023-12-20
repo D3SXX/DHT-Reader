@@ -82,7 +82,7 @@ def read_and_write_config(flag, select_theme, temperature_unit, device,pin, allo
     else:
         # Create a ConfigParser object
         config = configparser.ConfigParser()
-
+        
         try:
             # Check if config file is empty
             try:

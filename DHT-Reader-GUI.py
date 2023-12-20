@@ -4,7 +4,6 @@ try:
     import os
     import time
     from datetime import datetime
-    import configparser
     import board
     import adafruit_dht
     import matplotlib
@@ -16,105 +15,18 @@ try:
     import shutil
     import tkinter as tk
     import tkinter.ttk as ttk
-except:
-    raise SystemExit("Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter")
+    from Core import config
+    from Core import device
+except Exception as e:
+    raise SystemExit(f"Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter\n{e}")
 
-version = "v0.3"
+
+version = "v0.4 Beta"
         
 # A converter for dht name
 # Also if flag is set to 1 it checks for correct name
-def dht_convert(device, flag=None):
-    if device == "DHT11":
-        if flag == 1:
-            raise Exception("Something went wrong, is there enough entries in your config file?")
-        return adafruit_dht.DHT11
-    elif device == "DHT22":
-        if flag == 1:
-            raise Exception("Something went wrong, is there enough entries in your config file?")     
-        return adafruit_dht.DHT22
-    elif device == "DHT21":
-        if flag == 1:
-            raise Exception("Something went wrong, is there enough entries in your config file?")
-        return adafruit_dht.DHT21
-    elif device == adafruit_dht.DHT11:
-        return "DHT11"
-    elif device == adafruit_dht.DHT22:
-        return "DHT22"
-    elif device == adafruit_dht.DHT21:
-        return "DHT21"
-    else:
-        raise SystemExit("Something went wrong, check your config file!\nUnknown device " + str(device)) 
 
 # Reads or writes to/from the config file, depends on flag
-def read_and_write_config(flag, select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename,excel_filename, img_filename):
-    
-    config_file = 'dhtreader.ini'
-    
-    if flag == 1:
-        
-        # Create a ConfigParser object
-        config = configparser.ConfigParser()
-        
-        device = dht_convert(device)
-        
-        config['dhtreader'] = {
-            'DeviceModel':device,
-            'Pin':pin,
-            'SaveDataInTxt':allowtxt,
-            'RecordToExcel':allowxl,
-            'CreateImage':allowimg,
-            'DelayTime':delay_sec,
-            'UsePulseio':allow_pulseio,
-            'ResetData':reset_data,
-            'Theme':select_theme,
-            'TemperatureUnit':temperature_unit,
-            'GraphEnviroment':graph_environment,
-            'TxtFilename':txt_filename,
-            'ExcelFilename':excel_filename,
-            'ImageFilename':img_filename
-        }
-
-        with open(config_file, 'w') as file:
-            config.write(file)
-        return True
-    else:
-        # Create a ConfigParser object
-        config = configparser.ConfigParser()
-
-        try:
-            # Check if config file is empty
-            try:
-                open(config_file, 'r')
-                if os.path.getsize(config_file) <= 1:
-                    print(f"Config file {config_file} is empty, using default values")
-                    return select_theme, temperature_unit, dht_convert(device),pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename  
-            except:
-                print(f"Config file {config_file} doesn't exist, using default values")
-                return select_theme, temperature_unit, dht_convert(device),pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename  
-            # Read the configuration file
-            config.read(config_file)
-
-            # Access the values
-            device = config.get('dhtreader','DeviceModel')
-            pin = config.get('dhtreader','Pin')
-            allowtxt = config.getint('dhtreader', 'SaveDataInTxt')
-            allowxl = config.getint('dhtreader', 'RecordToExcel')
-            allowimg = config.getint('dhtreader','CreateImage')
-            delay_sec = config.getint('dhtreader', 'DelayTime')
-            allow_pulseio = config.getint('dhtreader','UsePulseio')
-            reset_data = config.getint('dhtreader','resetdata')
-            select_theme = config.getint('dhtreader','Theme')
-            temperature_unit = config.get('dhtreader','TemperatureUnit')
-            graph_environment = config.get('dhtreader','GraphEnviroment')
-            txt_filename = config.get('dhtreader','TxtFilename')
-            excel_filename = config.get('dhtreader','ExcelFilename')
-            img_filename = config.get('dhtreader','ImageFilename')
-                
-            # Convert "device" from str to appropriate type
-            device = dht_convert(device)
-            return select_theme, temperature_unit, device,pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename   
-        except configparser.Error as e:
-            raise SystemExit(f"Error reading config file! {e}")
             
 # Create an Excel file and an Image
 def write_to_xl(temperature, humidity,excel_filename, img_filename, flag):
@@ -233,15 +145,6 @@ def write_to_txt(temperature, humidity, txt_filename):
     print(f"{txt_filename} ({txt_size} bytes) file was updated ")
     return [str(f"{txt_filename} ({txt_size} bytes) file was updated ")]
 
-def init_device(flag, device, pin, allow_pulseio):
-    global dhtDevice
-    if flag != 1:
-        dhtDevice.exit()
-    # Initial the dht device, with data pin connected to:
-    pin_value = getattr(board, "D" + str(pin))
-    dhtDevice = device(pin_value, bool(allow_pulseio))
-    if flag != 3:
-        print(f"Device {dht_convert(device)} with pin {pin} initialized\nPulseio is set to {bool(allow_pulseio)}")
 
 def insert_log_error(flag, log_msg = "", error_msg = ""):
     # flag == 1 --> add log only, flag == 2 --> add error only, flag == 3 --> both
@@ -300,6 +203,7 @@ def change_theme(select):
         foreground_errors = "red"
 
 def auto_detect(flag = 0, scan_all = 1, first_pin = 0, last_pin = 20):
+    global dhtDevice
     pin = 0
     allow_pulseio = 1
     devices = ["DHT11","DHT21","DHT22"]
@@ -325,7 +229,7 @@ def auto_detect(flag = 0, scan_all = 1, first_pin = 0, last_pin = 20):
             autodetect_listbox.see(tk.END)
             autodetect_listbox.update_idletasks()
         print(msg)
-        device = dht_convert(current_device)
+        device_model = current_device
         for allow_pulseio in range(1,-1,-1):
             msg = f"Pulseio is set to {bool(allow_pulseio)}"
             if flag == 1:
@@ -337,7 +241,7 @@ def auto_detect(flag = 0, scan_all = 1, first_pin = 0, last_pin = 20):
                 try:
                     if pin == 7 or pin == 8:
                         continue
-                    init_device(3, device, pin, allow_pulseio)
+                    dhtDevice = device.re_init(None,dhtDevice, device_model, pin, bool(allow_pulseio))
                     msg = f"Checking pin {pin}"
                     if flag == 1:
                         autodetect_listbox.insert(tk.END, msg)
@@ -384,41 +288,27 @@ temperature_hold = []
 humidity_hold = []
 info_xl = []
 
-# Default values
-allowtxt = 0
-allowxl = 0
-allowimg = 0
-delay_sec = 5
-allow_pulseio = 1
-reset_data = 0
-device = "DHT11"
-pin = 4
-select_theme = 0
-temperature_unit = "C"
-graph_environment = "Temperature"
 
-graph_show = "Both"
-
-# Default filenames
-txt_filename = "T_and_H.txt"
-excel_filename = "T_and_H.xlsx"
-img_filename = "T_and_H.png"
 
 parser = argparse.ArgumentParser(description='A DHT-Reader CLI Interface')
 parser.add_argument('--skip', action='store_true', help='Skip config check')
 parser.add_argument('--debug', action='store_true', help='Show debug info')
 parser.add_argument('--autodetect', action='store_true', help='Auto detect device')
 args = parser.parse_args()
-
+data = config.Data()
 if not args.skip:
-    flag = 2
-    select_theme, temperature_unit, device, pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename = read_and_write_config(flag, select_theme, temperature_unit, device, pin, allowtxt, allowxl, allowimg, delay_sec, allow_pulseio, reset_data, graph_environment, txt_filename, excel_filename, img_filename)
-else:
-    device = dht_convert(device)
-init_device(1, device, pin, allow_pulseio)
-change_theme(select_theme)
+    if config.check():
+        config.read(data)
+    else:
+        config.create(data)
 
-old_delay_sec = delay_sec
+global dhtDevice
+dhtDevice = device.init(data)
+
+change_theme(data.select_theme)
+
+old_delay_sec = data.delay_sec
+delay_sec = old_delay_sec
 
 def on_autodetect():
     def change_scan_all():
@@ -523,112 +413,98 @@ def on_settings():
     global frame_right
     global tk_settings_desc_2 
     global device_1_button 
-    
     def on_selection_changed(event):
-        global device
-        global pin
-        selected_item = option_var.get()
-        device = dht_convert(selected_item)
-        tk_device.set(f"Device: {selected_item}")
-        insert_log_error(1,f"Device was changed to {dht_convert(device)}")
-        init_device(0, device, pin, allow_pulseio)
+        data.device_model = option_var.get()
+        tk_device.set(f"Device: {data.device_model}")
+        insert_log_error(1,f"Device was changed to {data.device_model}")
+        global dhtDevice
+        dhtDevice = device.re_init(data,dhtDevice)
     
     def on_pin_entry_return(event):
-        global device
-        global pin
-        pin = pin_entry_var.get()
-        tk_pin.set(f"Pin: {pin}")
-        insert_log_error(1,f"Pin was changed to {pin}")
-        init_device(0, device, pin, allow_pulseio)
+        data.pin = pin_entry_var.get()
+        tk_pin.set(f"Pin: {data.pin}")
+        insert_log_error(1,f"Pin was changed to {data.pin}")
+        global dhtDevice
+        dhtDevice = device.re_init(data, dhtDevice)
     
     def on_checkbox_change(option):
         if option == 0:
-            global allowtxt
-            allowtxt = not allowtxt
-            insert_log_error(1,f"Writing to a txt file is set to {bool(allowtxt)}")
+            data.allow_txt = not data.allow_txt
+            insert_log_error(1,f"Writing to a txt file is set to {data.allow_txt}")
 
         elif option == 1:
-            global allowxl
-            allowxl = not allowxl
-            insert_log_error(1,f"Writing to a Excel file is set to {bool(allowxl)}")
+            data.allow_xl = not data.allow_xl
+            insert_log_error(1,f"Writing to a Excel file is set to {data.allow_xl}")
         elif option == 2:
-            global allowimg
-            allowimg = not allowimg
-            insert_log_error(1,f"Writing to an Image file is set to {bool(allowimg)}")
+            data.allow_img = not data.allow_img
+            insert_log_error(1,f"Writing to an Image file is set to {data.allow_img}")
         elif option == 3:
-            global allow_pulseio
-            allow_pulseio = not allow_pulseio
-            insert_log_error(1,f"Using Pulseio is set to {bool(allow_pulseio)}")
-            init_device(0, device, pin, allow_pulseio) 
+            data.allow_pulseio = not data.allow_pulseio
+            insert_log_error(1,f"Using Pulseio is set to {data.allow_pulseio}")
+            global dhtDevice
+            dhtDevice = device.re_init(data, dhtDevice) 
         elif option == 4:
-            global reset_data
-            reset_data = not reset_data
-            insert_log_error(1,f"Reset data at startup is set to {bool(reset_data)}")
+            data.reset_data = not data.reset_data
+            insert_log_error(1,f"Reset data at startup is set to {data.reset_data}")
             
     def on_filename_entry_return(option, value):
         if option == 0:
-            global txt_filename
-            txt_filename = value.get()
-            print(f"New txt filename: {txt_filename}")
-            insert_log_error(1,f"Text filename was changed to {txt_filename}")
+            data.txt_filename = value.get()
+            print(f"New txt filename: {data.txt_filename}")
+            insert_log_error(1,f"Text filename was changed to {data.txt_filename}")
         elif option == 1:
-            global excel_filename
-            excel_filename = value.get()
-            print(f"New Excel filename: {excel_filename}")
-            insert_log_error(1,f"Excel filename was changed to {excel_filename}")
+            data.xl_filename = value.get()
+            print(f"New Excel filename: {data.xl_filename}")
+            insert_log_error(1,f"Excel filename was changed to {data.xl_filename}")
         elif option == 2:
-            global img_filename
-            img_filename = value.get()
-            print(f"New image filename: {img_filename}")
-            insert_log_error(1,f"Image filename was changed to {img_filename}")
+            data.img_filename = value.get()
+            print(f"New image filename: {data.img_filename}")
+            insert_log_error(1,f"Image filename was changed to {data.img_filename}")
     
     def change_temperature_unit(unit):
-        global temperature_unit
         if unit == "C":
             c_unit_button.config(relief=tk.SUNKEN)
             f_unit_button.config(relief=tk.RAISED)
         elif unit == "F":
             c_unit_button.config(relief=tk.RAISED)
             f_unit_button.config(relief=tk.SUNKEN)
-        temperature_unit = unit
+        data.temperature_unit = unit
         insert_log_error(1,f"Temperature unit was changed to °{unit}")
             
     def change_graph(option):
-        global graph_show 
         if option == "T":
-            graph_show = "Temperature"
+            data.graph_show = "Temperature"
             T_graph_change_button.config(relief=tk.SUNKEN)
             T_H_graph_change_button.config(relief=tk.RAISED)
             H_graph_change_button.config(relief=tk.RAISED)
-            insert_log_error(1,f"Graph now shows only {graph_show}")
+            insert_log_error(1,f"Graph now shows only {data.graph_show}")
         elif option == "H":
-            graph_show = "Humidity"
+            data.graph_show = "Humidity"
             T_graph_change_button.config(relief=tk.RAISED)
             T_H_graph_change_button.config(relief=tk.RAISED)
             H_graph_change_button.config(relief=tk.SUNKEN)
-            insert_log_error(1,f"Graph now shows only {graph_show}")
+            insert_log_error(1,f"Graph now shows only {data.graph_show}")
         else:
-            graph_show = "Both"
+            data.graph_show = "Both"
             T_graph_change_button.config(relief=tk.RAISED)
             T_H_graph_change_button.config(relief=tk.SUNKEN)
             H_graph_change_button.config(relief=tk.RAISED)
             insert_log_error(1,f"Graph now shows both temperature and humidity")
 
     def on_change_delay(value, flag = 0):
-        global old_delay_sec
         if flag == 1:
             value = value.get()
         if value > 0:
-            old_delay_sec = value
-            delay_entry_var.set(old_delay_sec)
+            data.delay_sec = value
+            delay_entry_var.set(data.delay_sec)
             delay_decrease_button.config(relief=tk.RAISED)
-            insert_log_error(1,f"Delay was changes to {old_delay_sec} second(s)")
+            insert_log_error(1,f"Delay was changes to {data.delay_sec} second(s)")
             if value == 1:
                 delay_decrease_button.config(relief=tk.SUNKEN)
         else:
             delay_decrease_button.config(relief=tk.SUNKEN)
             if args.debug:
-                insert_log_error(1,f"debug: delay value is too small to decrease --> {old_delay_sec}")
+                insert_log_error(1,f"debug: delay value is too small to decrease --> {data.delay_sec}")
 
     def on_theme_select(select):
         global select_theme
@@ -638,7 +514,6 @@ def on_settings():
         
     def on_select(event):
         
-        global device
         global tk_device
         global tk_pin
         
@@ -664,14 +539,14 @@ def on_settings():
                 option_var = tk.StringVar(change_device_frame)
                 if args.debug:
                     insert_log_error(1,f"Select {selected_index[0]} (Device and pin settings)")
-                    insert_log_error(1,f"Menu options: {device_options} current device: {dht_convert(device)}")
-                    insert_log_error(1,f"Current pin: {pin}")
-                    insert_log_error(1,f"pulseio: {bool(allow_pulseio)}")
-                if dht_convert(device) == "DHT11": # Set the default option (depends on the current device)
+                    insert_log_error(1,f"Menu options: {device_options} current device: {data.device_model}")
+                    insert_log_error(1,f"Current pin: {data.pin}")
+                    insert_log_error(1,f"pulseio: {data.allow_pulseio}")
+                if data.device_model == "DHT11": # Set the default option (depends on the current device)
                     option_var.set(device_options[0])
-                elif dht_convert(device) == "DHT21":
+                elif data.device_model == "DHT21":
                     option_var.set(device_options[1])  
-                elif dht_convert(device) == "DHT22":
+                elif data.device_model == "DHT22":
                     option_var.set(device_options[2])  
                 
                 device_label = ttk.Label(change_device_frame, text="Current device: ")
@@ -689,7 +564,7 @@ def on_settings():
                 
                 # Pin Entry
                 pin_entry_var = tk.StringVar(entry_frame)
-                pin_entry_var.set(pin)  # Set the default value to the current variable
+                pin_entry_var.set(data.pin)  # Set the default value to the current variable
                 pin_entry = tk.Entry(entry_frame, textvariable=pin_entry_var,bg=background_main, fg=foreground_main)
                 pin_entry.pack(anchor="w")
                 
@@ -702,11 +577,11 @@ def on_settings():
                 optional_frame = ttk.LabelFrame(main_frame, text="Optional", padding=5)
                 optional_frame.pack(anchor="nw")
                 
-                checkbox_allowpulseio_var = tk.BooleanVar(value=bool(allow_pulseio))
+                checkbox_allowpulseio_var = tk.BooleanVar(value=data.allow_pulseio)
                 
                 allowpulseio_checkbox = tk.Checkbutton(optional_frame, text="Enable Pulseio", variable=checkbox_allowpulseio_var, command=lambda: on_checkbox_change(3))
                 allowpulseio_checkbox.pack(anchor="nw")
-                if allow_pulseio:
+                if data.allow_pulseio:
                     allowpulseio_checkbox.select()
                 # Create a new frame to hold the Auto detect widgets
                 autodetect_frame = ttk.LabelFrame(main_frame, text="Auto detect device", padding=5)
@@ -722,13 +597,13 @@ def on_settings():
 
                 if args.debug:
                     insert_log_error(1,f"Select {selected_index[0]} (Save and Reset data settings)")
-                    insert_log_error(1,f"allowtxt: {bool(allowtxt)}")
-                    insert_log_error(1,f"allowxl: {bool(allowxl)}")
-                    insert_log_error(1,f"allowimg: {bool(allowimg)}")
-                    insert_log_error(1,f"txt_filename: {txt_filename}")
-                    insert_log_error(1,f"excel_filename: {excel_filename}")
-                    insert_log_error(1,f"img_filename: {img_filename}")
-                    insert_log_error(1,f"reset_data: {reset_data}")
+                    insert_log_error(1,f"allow_txt: {data.allow_txt}")
+                    insert_log_error(1,f"allow_xl: {data.allow_xl}")
+                    insert_log_error(1,f"allow_img: {data.allow_img}")
+                    insert_log_error(1,f"txt_filename: {data.txt_filename}")
+                    insert_log_error(1,f"excel_filename: {data.xl_filename}")
+                    insert_log_error(1,f"img_filename: {data.img_filename}")
+                    insert_log_error(1,f"reset_data: {data.reset_data}")
                     
                 # Create a new frame to hold the checkbutton widgets
                 checkbutton_frame = ttk.LabelFrame(data_frame, text="Save data to formats:", padding=5)
@@ -736,17 +611,17 @@ def on_settings():
 
                 allowtxt_checkbox = tk.Checkbutton(checkbutton_frame, text="txt file",command=lambda: on_checkbox_change(0))
                 allowtxt_checkbox.pack(anchor="w")
-                if allowtxt:
+                if data.allow_txt:
                     allowtxt_checkbox.select()
                 
                 allowxl_checkbox = tk.Checkbutton(checkbutton_frame, text="Excel file",command=lambda: on_checkbox_change(1))
                 allowxl_checkbox.pack(anchor="w")
-                if allowxl:
+                if data.allow_xl:
                     allowxl_checkbox.select()
                 
                 allowimg_checkbox = tk.Checkbutton(checkbutton_frame, text="Image file",command=lambda: on_checkbox_change(2))
                 allowimg_checkbox.pack(anchor="w")
-                if allowimg:
+                if data.allow_img:
                     allowimg_checkbox.select()
                 
                 # Create a new frame to hold the Entry widgets
@@ -759,7 +634,7 @@ def on_settings():
                 
                 # txt Entry
                 txt_filename_entry_var = tk.StringVar(entry_frame)
-                txt_filename_entry_var.set(txt_filename)  # Set the default value to the current variable
+                txt_filename_entry_var.set(data.txt_filename)  # Set the default value to the current variable
                 txt_filename_entry = tk.Entry(entry_frame, textvariable=txt_filename_entry_var, bg=background_main, fg=foreground_main)
                 txt_filename_entry.pack(anchor="w")
                 
@@ -772,7 +647,7 @@ def on_settings():
                 
                 # excel Entry
                 excel_filename_entry_var = tk.StringVar(entry_frame)
-                excel_filename_entry_var.set(excel_filename)  # Set the default value to the current variable
+                excel_filename_entry_var.set(data.xl_filename)  # Set the default value to the current variable
                 excel_filename_entry = tk.Entry(entry_frame, textvariable=excel_filename_entry_var, bg=background_main, fg=foreground_main)
                 excel_filename_entry.pack(anchor="w")
                 
@@ -785,7 +660,7 @@ def on_settings():
                 
                 # excel Entry
                 img_filename_entry_var = tk.StringVar(entry_frame)
-                img_filename_entry_var.set(img_filename)  # Set the default value to the current variable
+                img_filename_entry_var.set(data.img_filename)  # Set the default value to the current variable
                 img_filename_entry = tk.Entry(entry_frame, textvariable=img_filename_entry_var, bg=background_main, fg=foreground_main)
                 img_filename_entry.pack(anchor="w")
                 
@@ -800,7 +675,7 @@ def on_settings():
                 
                 reset_data_checkbox = tk.Checkbutton(optional_frame,variable=reset_data_var, text="Reset data at startup",command=lambda: on_checkbox_change(4))
                 reset_data_checkbox.pack(anchor="w")
-                if reset_data:
+                if data.reset_data:
                     reset_data_checkbox.select()
                 
             elif selected_index[0] == 2:
@@ -818,10 +693,10 @@ def on_settings():
                 
                 if args.debug:
                     insert_log_error(1,f"Select {selected_index[0]} (General)")
-                    insert_log_error(1,f"temperature_unit: {temperature_unit}")
-                    insert_log_error(1,f"graph_show: {graph_show}")
-                    insert_log_error(1,f"old_delay_sec: {old_delay_sec}")
-                    insert_log_error(1,f"select_theme: {select_theme}")
+                    insert_log_error(1,f"temperature_unit: {data.temperature_unit}")
+                    insert_log_error(1,f"graph_show: {data.graph_show}")
+                    insert_log_error(1,f"delay_sec: {data.delay_sec}")
+                    insert_log_error(1,f"select_theme: {data.select_theme}")
                 
                 # Change temperature unit
                 temperature_unit_frame = ttk.LabelFrame(general_frame, text="Change temperature unit", padding=5)
@@ -837,8 +712,8 @@ def on_settings():
                 f_unit_button.pack(side="left")
                 
                 # Set the initial relief of the buttons based on the current temperature_unit
-                c_unit_button.config(relief=tk.SUNKEN if temperature_unit == "C" else tk.RAISED)
-                f_unit_button.config(relief=tk.SUNKEN if temperature_unit == "F" else tk.RAISED)
+                c_unit_button.config(relief=tk.SUNKEN if data.temperature_unit == "C" else tk.RAISED)
+                f_unit_button.config(relief=tk.SUNKEN if data.temperature_unit == "F" else tk.RAISED)
                 
                 graph_change_frame = ttk.LabelFrame(general_frame, text="Change graph", padding=5)
                 graph_change_frame.pack(anchor="nw")
@@ -851,26 +726,26 @@ def on_settings():
                 H_graph_change_button.pack(side="left")
                 
                 # Set the initial relief of the buttons based on the current graph_show
-                T_graph_change_button.config(relief=tk.SUNKEN if graph_show == "Temperature" else tk.RAISED)
-                T_H_graph_change_button.config(relief=tk.SUNKEN if graph_show == "Both" else tk.RAISED)
-                H_graph_change_button.config(relief=tk.SUNKEN if graph_show == "Humidity" else tk.RAISED)
+                T_graph_change_button.config(relief=tk.SUNKEN if data.graph_show == "Temperature" else tk.RAISED)
+                T_H_graph_change_button.config(relief=tk.SUNKEN if data.graph_show == "Both" else tk.RAISED)
+                H_graph_change_button.config(relief=tk.SUNKEN if data.graph_show == "Humidity" else tk.RAISED)
                 
                 delay_change_frame = ttk.LabelFrame(general_frame, text="Change delay", padding=5)
                 delay_change_frame.pack(anchor="nw")
                 
-                delay_decrease_button = tk.Button(delay_change_frame, text ="-", command = lambda: on_change_delay(old_delay_sec-1),bg=background_button, fg=foreground_main)
+                delay_decrease_button = tk.Button(delay_change_frame, text ="-", command = lambda: on_change_delay(data.delay_sec-1),bg=background_button, fg=foreground_main)
                 delay_decrease_button.pack(side="left")
                 
                 # delay Entry
                 delay_entry_var = tk.IntVar(delay_change_frame)
-                delay_entry_var.set(old_delay_sec)  # Set the default value to the current variable
+                delay_entry_var.set(data.delay_sec)  # Set the default value to the current variable
                 delay_change_entry = tk.Entry(delay_change_frame, textvariable=delay_entry_var,bg=background_main, fg=foreground_main)
                 delay_change_entry.pack(side="left")
                 
                 # Bind the "Return" key event to the Entry widget
                 delay_change_entry.bind("<Return>", lambda event: on_change_delay(delay_entry_var,1))   
                 
-                delay_increase_button = tk.Button(delay_change_frame, text ="+", command = lambda: on_change_delay(old_delay_sec+1),bg=background_button, fg=foreground_main)
+                delay_increase_button = tk.Button(delay_change_frame, text ="+", command = lambda: on_change_delay(data.delay_sec+1),bg=background_button, fg=foreground_main)
                 delay_increase_button.pack(side="left")
                 
                 # Create a new frame to hold the theme change widgets
@@ -879,13 +754,13 @@ def on_settings():
                                 
                 themes_options = ["Default (white)", "Default (black)", "Classic (black)", "Classic (Blue)"]
                 option_var = tk.StringVar(theme_change_frame)
-                if select_theme == 0: # Set the default option (depends on the select_theme variable)
+                if data.select_theme == 0: # Set the default option (depends on the select_theme variable)
                     option_var.set(themes_options[0])
-                elif select_theme == 1:
+                elif data.select_theme == 1:
                     option_var.set(themes_options[1])  
-                elif select_theme == 2:
+                elif data.select_theme == 2:
                     option_var.set(themes_options[2])  
-                elif select_theme == 3:
+                elif data.select_theme == 3:
                     option_var.set(themes_options[3]) 
                     
                 theme_label = ttk.Label(theme_change_frame, text="Current theme: ")
@@ -896,13 +771,13 @@ def on_settings():
                 option_menu.pack(fill="x", anchor="w")
                 
                 # Set the initial relief of the buttons based on the current graph_show
-                delay_decrease_button.config(relief=tk.SUNKEN if old_delay_sec <= 1 else tk.RAISED)
+                delay_decrease_button.config(relief=tk.SUNKEN if data.delay_sec <= 1 else tk.RAISED)
                 
             selected_item = listbox.get(selected_index)
 
     def on_close_settings():
         settings_window.destroy()
-        read_and_write_config(1, select_theme, temperature_unit, device,int(pin), int(allowtxt), int(allowxl), int(allowimg), int(old_delay_sec), int(allow_pulseio), int(reset_data), graph_environment, txt_filename, excel_filename, img_filename)
+        config.create(data)
         insert_log_error(1,f"Config file was updated")
         
     # Create a new instance of Tk for the new window
@@ -959,7 +834,7 @@ def on_settings():
     settings_window.mainloop()
 
 def on_close():
-    dhtDevice.exit()
+    device.stop(dhtDevice)
     print("DHT device disabled, closing the program")
     window.destroy()
     try:
@@ -994,7 +869,7 @@ def update_temperature_humidity():
                     break
 
             if temperature is not None:
-                if temperature_unit == "F":
+                if data.temperature_unit == "F":
                     temperature = int(1.8 * temperature + 32)
                 temperature_hold.append(temperature)
                 humidity_hold.append(humidity)
@@ -1003,7 +878,7 @@ def update_temperature_humidity():
             time_took = end_time - start_time
 
         # Update tk values
-        tk_temperature.set(f"Temperature: {temperature} °{temperature_unit}")
+        tk_temperature.set(f"Temperature: {temperature} °{data.temperature_unit}")
         tk_humidity.set(f"Humidity: {humidity} %")
         
         if delay_sec != old_delay_sec:
@@ -1022,18 +897,18 @@ def update_temperature_humidity():
             tk_countdown.set(f"The next update: 0 seconds")  # Set countdown to 0 when the delay is complete
             delay_sec = old_delay_sec
             if not temperature == None:
-                if allowtxt == 1:
-                    info_xl.extend(write_to_txt(temperature,humidity,txt_filename))
-                if allowxl == 1 or allowimg == 1:
+                if data.allow_txt == 1:
+                    info_xl.extend(write_to_txt(temperature,humidity,data.txt_filename))
+                if data.allow_xl == 1 or data.allow_img == 1:
                 # flag == 1 -> allow only xl, flag == 2 allow only image, flag == 3 allow both
                     flag = 0
-                    if allowxl == 1 and allowimg == 1:
+                    if data.allow_xl and data.allow_img:
                         flag = 3
-                    elif allowxl == 1 and allowimg == 0:
+                    elif data.allow_xl and not data.allow_img:
                         flag = 1
                     else:
                         flag = 2
-                    info_xl.extend(write_to_xl(temperature,humidity,excel_filename,img_filename,flag))
+                    info_xl.extend(write_to_xl(temperature,humidity,data.xl_filename,data.img_filename,flag))
                 
             
             window.after(1000, update_temperature_humidity)
@@ -1042,16 +917,16 @@ def update_temperature_humidity():
             
     
     except Exception as error:
-        dhtDevice.exit()
+        device.stop(dhtDevice)
         raise SystemExit(error)
     except KeyboardInterrupt:
         raise SystemExit
 
 def update_graph():
     a.clear()
-    if graph_show == "Temperature":
+    if data.graph_show == "Temperature":
         a.plot(temperature_hold, label='Temperature')
-    elif graph_show == "Humidity":
+    elif data.graph_show == "Humidity":
         a.plot(humidity_hold, label='Humidity')
     else:
         a.plot(temperature_hold, label='Temperature')
@@ -1104,12 +979,12 @@ frame_bottom_right.grid(row=1, column=1, sticky="nsew")
 
 # Variables to store values in information box
 
-tk_device = tk.StringVar(window, f"Device: {dht_convert(device)}")
-tk_pin = tk.StringVar(window, f"Pin: {pin}")
+tk_device = tk.StringVar(window, f"Device: {data.device_model}")
+tk_pin = tk.StringVar(window, f"Pin: {data.pin}")
 tk_temperature = tk.StringVar(window, "Temperature: ")
 tk_humidity = tk.StringVar(window, "Humidity: ")
 tk_countdown = tk.StringVar()
-tk_countdown.set(f"{delay_sec} seconds")
+tk_countdown.set(f"{data.delay_sec} seconds")
 tk_logs = tk.StringVar(window)
 tk_errors = tk.StringVar(window)
 
@@ -1230,7 +1105,7 @@ if args.autodetect:
 
 if args.debug:
     insert_log_error(1,"Debug mode activated with --debug")
-if reset_data == 1:
+if data.reset_data:
     startup_reset_data()
 
 window.protocol("WM_DELETE_WINDOW", on_close)
