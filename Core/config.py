@@ -27,6 +27,11 @@ class Data:
     def get_device_class(self):
         return device.convert_name(self.device_model)
 
+class ProgramData:
+    tmp_folderpath  = "Tmp/"
+    xl_tmp_filename = "xl_tmp"
+    img_tmp_filename = "img_tmp"
+    
 
 def create(data):
     """

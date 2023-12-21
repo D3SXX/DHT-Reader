@@ -17,133 +17,18 @@ try:
     import tkinter.ttk as ttk
     from Core import config
     from Core import device
+    from Core import output
+    from Core import get_time
 except Exception as e:
     raise SystemExit(f"Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter\n{e}")
 
 
-version = "v0.4 Beta"
+version = "v0.4a Beta"
         
 # A converter for dht name
 # Also if flag is set to 1 it checks for correct name
 
 # Reads or writes to/from the config file, depends on flag
-            
-# Create an Excel file and an Image
-def write_to_xl(temperature, humidity,excel_filename, img_filename, flag):
-    # flag == 1 -> allow only xl, flag == 2 allow only image, flag == 3 allow both
-    return_list = []
-    
-    now = datetime.now()
-    date_time = now.strftime("%d/%m/%Y, %H:%M:%S")
-    df = [date_time, temperature, humidity]
-
-    # Check if 'xl_tmp' temporary file exists, create it if not
-    try:
-        with open("xl_tmp", "a") as f:
-            f.write("\n" + " ".join(str(x) for x in df))
-    except FileNotFoundError:
-        with open("xl_tmp", "w") as f:
-            f.write(" ".join(str(x) for x in df))
-
-    # Read the contents of 'xl_tmp' file
-    with open("xl_tmp", "r") as f:
-        tmp_xl = f.readlines()
-
-    a = len(tmp_xl)
-    
-    stroftime = []
-    strofT = []
-    strofH = []
-    
-    # Process each line in 'xl_tmp' and extract date, time, temperature, and humidity
-    for entry in tmp_xl:
-        data = entry.split()
-        if len(data) >= 3:  # Check if line has expected number of elements
-            stroftime.append(data[0] + " " + data[1])  # Combine date and time
-            strofT.append(data[2])
-            strofH.append(data[3])
-
-    if flag == 2 or flag == 3:
-        start_time = time.time()
-        # Plot the humidity and temperature data
-        
-        # Create a figure and axis objects
-        fig, ax = plt.subplots()
-    
-        # Generate dynamic x values based on stroftime length
-        x = range(len(stroftime))
-    
-        # Plot temperature line
-        ax.plot(x, strofT, label='Temperature')
-        # Plot humidity line
-        ax.plot(x, strofH, label='Humidity')
-        # Add labels and legend
-        ax.set_xlabel('Amount of reads')
-        ax.legend()
-        plt.savefig(img_filename, dpi=300, bbox_inches='tight')
-        full_time = time.time() - start_time
-        img_size = os.path.getsize(img_filename)
-        print(f"An image {img_filename} ({img_size} bytes) was created in {full_time:.2f} seconds")
-        return_list.append(f"An image {img_filename} ({img_size} bytes) was created in {full_time:.2f} seconds")
-        if flag == 2:
-            return return_list
-
-    # Create an Excel workbook and worksheet
-    
-    workbook = xlsxwriter.Workbook(excel_filename, {'strings_to_numbers': True})
-    worksheet = workbook.add_worksheet()
-    datetime_format = workbook.add_format({'num_format': 'dd/mm/yyyy, hh:mm:ss'})
-    number_format = workbook.add_format({'num_format': '0'})
-
-    stroflegend = ['Date and Time', 'Temperature', 'Humidity']
-    for col_num, data in enumerate(stroflegend):
-        worksheet.write(0, col_num, data)
-
-    # Write the data to the worksheet
-    for row_num, data in enumerate(stroftime):
-        worksheet.write(row_num + 1, 0, data, datetime_format)
-
-    for row_num, data in enumerate(strofT):
-        worksheet.write(row_num + 1, 1, int(data), number_format)
-
-    for row_num, data in enumerate(strofH):
-        worksheet.write(row_num + 1, 2, int(data), number_format)
-
-    # Create charts for temperature and humidity
-    chart = workbook.add_chart({'type': 'line'})
-    chart.add_series({'values': '=Sheet1!$B$2:$B$%d' % a})
-    chart.set_title({"name": "Temperature"})
-    worksheet.insert_chart('E1', chart)
-
-    chart2 = workbook.add_chart({'type': 'line'})
-    chart2.add_series({'values': '=Sheet1!$C$2:$C$%d' % a})
-    chart2.set_title({"name": "Humidity"})
-    worksheet.insert_chart('E17', chart2)
-
-    # Close the workbook
-    workbook.close()
-    xl_size = os.path.getsize(excel_filename)
-    print(f"An Excel file {excel_filename} ({xl_size} bytes) with {a} entries was created")
-    return_list.append(f"An Excel file {excel_filename} ({xl_size} bytes) with {a} entries was created")
-    
-    return return_list 
-
-#Creare a txt file    
-def write_to_txt(temperature, humidity, txt_filename):
-
-    # Record data in a text file
-    with open(txt_filename, "a") as f:
-        # Check what is the time right now
-        now = datetime.now()
-        # Format it for better readability
-        date_time = now.strftime("%m/%d/%Y, %H:%M:%S")
-        # Make a structure that holds all the data
-        entry = f"{date_time} Temperature: {temperature} Humidity: {humidity}\n"
-        # Write this structure to a file
-        f.write(entry)
-    txt_size = os.path.getsize(txt_filename)
-    print(f"{txt_filename} ({txt_size} bytes) file was updated ")
-    return [str(f"{txt_filename} ({txt_size} bytes) file was updated ")]
 
 
 def insert_log_error(flag, log_msg = "", error_msg = ""):
@@ -296,6 +181,8 @@ parser.add_argument('--debug', action='store_true', help='Show debug info')
 parser.add_argument('--autodetect', action='store_true', help='Auto detect device')
 args = parser.parse_args()
 data = config.Data()
+program_data = config.ProgramData()
+
 if not args.skip:
     if config.check():
         config.read(data)
@@ -856,16 +743,14 @@ def update_temperature_humidity():
     try:
         if delay_sec == old_delay_sec:
             humidity, temperature = None, None
-            start_time = time.time()
+            start_time = get_time.time_s()
             while humidity is None or temperature is None:
                 try:
                     temperature = dhtDevice.temperature
                     humidity = dhtDevice.humidity
                 except RuntimeError as error:
                     # Handle errors and log them
-                    now = datetime.now()
-                    now = now.strftime("%d/%m/%Y, %H:%M:%S")
-                    insert_log_error(3,f"Error happened at {now}",error.args[0])
+                    insert_log_error(3,f"Error happened at {get_time.date()}",error.args[0])
                     break
 
             if temperature is not None:
@@ -874,8 +759,7 @@ def update_temperature_humidity():
                 temperature_hold.append(temperature)
                 humidity_hold.append(humidity)
                 update_graph()
-            end_time = time.time()
-            time_took = end_time - start_time
+            time_took = get_time.time_s() - start_time
 
         # Update tk values
         tk_temperature.set(f"Temperature: {temperature} °{data.temperature_unit}")
@@ -897,18 +781,12 @@ def update_temperature_humidity():
             tk_countdown.set(f"The next update: 0 seconds")  # Set countdown to 0 when the delay is complete
             delay_sec = old_delay_sec
             if not temperature == None:
-                if data.allow_txt == 1:
-                    info_xl.extend(write_to_txt(temperature,humidity,data.txt_filename))
-                if data.allow_xl == 1 or data.allow_img == 1:
-                # flag == 1 -> allow only xl, flag == 2 allow only image, flag == 3 allow both
-                    flag = 0
-                    if data.allow_xl and data.allow_img:
-                        flag = 3
-                    elif data.allow_xl and not data.allow_img:
-                        flag = 1
-                    else:
-                        flag = 2
-                    info_xl.extend(write_to_xl(temperature,humidity,data.xl_filename,data.img_filename,flag))
+                if data.allow_txt:
+                    info_xl.extend(output.txt(temperature, humidity, data.txt_filename))
+                if data.allow_xl:
+                    info_xl.extend(output.xl(temperature, humidity, data.xl_filename,program_data.tmp_folderpath,program_data.xl_tmp_filename))
+                if data.allow_img:
+                    info_xl.extend(output.img(temperature, humidity, data.img_filename,program_data.tmp_folderpath, program_data.img_tmp_filename))
                 
             
             window.after(1000, update_temperature_humidity)
@@ -941,19 +819,6 @@ def reset_values():
     humidity_hold.clear()
     insert_log_error(1,"Graph was reset")
 
-def startup_reset_data():
-    
-    file_names = [txt_filename, "xl_tmp"]
-    for file_name in file_names:
-        try:
-            os.remove(file_name)
-            insert_log_error(1,f"File '{file_name}' deleted successfully")
-        except FileNotFoundError:
-            insert_log_error(2,"",f"File '{file_name}' not found")
-        except PermissionError:
-            insert_log_error(2,"",f"Unable to delete file '{file_name}'. Permission denied")
-        except Exception as e:
-            insert_log_error(2,"",f"An error occurred while deleting file '{file_name}': {str(e)}")    
 
 window = tk.Tk()
 window.title("DHT Reader " + version)
@@ -1106,7 +971,7 @@ if args.autodetect:
 if args.debug:
     insert_log_error(1,"Debug mode activated with --debug")
 if data.reset_data:
-    startup_reset_data()
+    output.startup_reset_data(data,program_data)
 
 window.protocol("WM_DELETE_WINDOW", on_close)
 
