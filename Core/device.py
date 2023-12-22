@@ -1,6 +1,7 @@
 import adafruit_dht
 import board
 from . import config
+
 def convert_name(device):
     if device == "DHT11":
         return adafruit_dht.DHT11
@@ -38,3 +39,12 @@ def re_init(data = None,dhtDevice = None, device_model = None, pin = None, allow
         new_data.allow_pulseio = allow_pulseio
         return init(new_data)
     return init(data)
+
+def get_data(dht_device):
+    try:
+        temperature = dht_device.temperature
+        humidity = dht_device.humidity
+        return temperature, humidity
+    except RuntimeError as error:
+        # Handle errors
+        return False,error.args[0]

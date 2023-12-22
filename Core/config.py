@@ -3,15 +3,19 @@ import os
 from . import device
 
 class Data:
+    """
+    Data class with pre-defined default values
+
+    """
     # Default values
     device_model = "DHT11"
     pin = 4
-    allow_txt = 0
-    allow_xl = 0
-    allow_img = 0
+    allow_txt = False
+    allow_xl = False
+    allow_img = False
     delay_sec = 5
-    allow_pulseio = 1
-    reset_data = 0
+    allow_pulseio = True
+    reset_data = False
     select_theme = 0
     temperature_unit = "C"
     graph_environment = "Temperature"
@@ -28,6 +32,9 @@ class Data:
         return device.convert_name(self.device_model)
 
 class ProgramData:
+    """
+    Data class with pre-defined default values for temporary files
+    """
     tmp_folderpath  = "Tmp/"
     xl_tmp_filename = "xl_tmp"
     img_tmp_filename = "img_tmp"
@@ -35,7 +42,7 @@ class ProgramData:
 
 def create(data):
     """
-    Create config file
+    Creates/updates config file
     Returns:
         Bool: True when a file was created
     """
@@ -65,6 +72,12 @@ def create(data):
     return True
 
 def check():
+    """
+    Check if config file exists
+
+    Returns:
+        boolean: if config file doesn't exist return False, else True
+    """
     config_file = 'dhtreader.ini'
     try:
         open(config_file, 'r')
@@ -78,33 +91,41 @@ def check():
 
 
 def read(data):
-        # Create a ConfigParser object
-        config = configparser.ConfigParser()
-        config_file = 'dhtreader.ini'
-        try:
-            # Read the configuration file
-            config.read(config_file)
-            # Access the values
-            data.device_model = config.get('dhtreader','DeviceModel')
-            data.pin = config.getint('dhtreader','Pin')
-            data.allow_txt = config.getboolean('dhtreader', 'SaveDataInTxt')
-            data.allow_xl = config.getboolean('dhtreader', 'RecordToExcel')
-            data.allow_img = config.getboolean('dhtreader','CreateImage')
-            data.delay_sec = config.getint('dhtreader', 'DelayTime')
-            data.allow_pulseio = config.getboolean('dhtreader','UsePulseio')
-            data.reset_data = config.getboolean('dhtreader','resetdata')
-            data.select_theme = config.getint('dhtreader','Theme')
-            data.temperature_unit = config.get('dhtreader','TemperatureUnit')
-            data.graph_environment = config.get('dhtreader','GraphEnviroment')
-            data.txt_filename = config.get('dhtreader','TxtFilename')
-            data.xl_filename = config.get('dhtreader','ExcelFilename')
-            data.img_filename = config.get('dhtreader','ImageFilename')
-                
-            return True
-        except configparser.Error as e:
-            raise SystemExit(f"Error reading config file! {e}")
-    
+    """
+    Read config file
 
-def write():
-    pass
+    Args:
+        data (object): Object with data 
+
+    Raises:
+        SystemExit: If config file has an error
+
+    Returns:
+        Boolean: True when scan is done
+    """
+    # Create a ConfigParser object
+    config = configparser.ConfigParser()
+    config_file = 'dhtreader.ini'
+    try:
+        # Read the configuration file
+        config.read(config_file)
+        # Access the values
+        data.device_model = config.get('dhtreader','DeviceModel')
+        data.pin = config.getint('dhtreader','Pin')
+        data.allow_txt = config.getboolean('dhtreader', 'SaveDataInTxt')
+        data.allow_xl = config.getboolean('dhtreader', 'RecordToExcel')
+        data.allow_img = config.getboolean('dhtreader','CreateImage')
+        data.delay_sec = config.getint('dhtreader', 'DelayTime')
+        data.allow_pulseio = config.getboolean('dhtreader','UsePulseio')
+        data.reset_data = config.getboolean('dhtreader','resetdata')
+        data.select_theme = config.getint('dhtreader','Theme')
+        data.temperature_unit = config.get('dhtreader','TemperatureUnit')
+        data.graph_environment = config.get('dhtreader','GraphEnviroment')
+        data.txt_filename = config.get('dhtreader','TxtFilename')
+        data.xl_filename = config.get('dhtreader','ExcelFilename')
+        data.img_filename = config.get('dhtreader','ImageFilename')
+                
+        return True
+    except configparser.Error as e:
+        raise SystemExit(f"Error reading config file! {e}")
     

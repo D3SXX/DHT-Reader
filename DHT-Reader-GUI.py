@@ -23,7 +23,7 @@ except Exception as e:
     raise SystemExit(f"Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter\n{e}")
 
 
-version = "v0.4a Beta"
+version = "v0.4b Beta"
         
 # A converter for dht name
 # Also if flag is set to 1 it checks for correct name
@@ -32,6 +32,16 @@ version = "v0.4a Beta"
 
 
 def insert_log_error(flag, log_msg = "", error_msg = ""):
+    """
+    Insert log or/and error string to appropriate GUI box
+    
+    If debug is active also prints message(s) to console
+    
+    Args:
+        flag (int): 1 for log, 2 for error, 3 for both error and log
+        log_msg (string): String for log message. Defaults to "".
+        error_msg (string): String for error message. Defaults to "".
+    """
     # flag == 1 --> add log only, flag == 2 --> add error only, flag == 3 --> both
     if flag == 1:
         logs_listbox.insert(tk.END, log_msg)
@@ -742,24 +752,22 @@ def update_temperature_humidity():
     delay_progress_bar["maximum"] = old_delay_sec
     try:
         if delay_sec == old_delay_sec:
-            humidity, temperature = None, None
             start_time = get_time.time_s()
-            while humidity is None or temperature is None:
-                try:
-                    temperature = dhtDevice.temperature
-                    humidity = dhtDevice.humidity
-                except RuntimeError as error:
-                    # Handle errors and log them
-                    insert_log_error(3,f"Error happened at {get_time.date()}",error.args[0])
-                    break
-
-            if temperature is not None:
-                if data.temperature_unit == "F":
-                    temperature = int(1.8 * temperature + 32)
-                temperature_hold.append(temperature)
-                humidity_hold.append(humidity)
-                update_graph()
+            temperature, humidity = device.get_data(dhtDevice)
+            if not temperature:
+                insert_log_error(3,f"Error happened at {get_time.date()}, retrying in 1 sec",humidity)
+                # Try to do a scan in a second
+                window.after(1000, update_temperature_humidity)
+                return    
             time_took = get_time.time_s() - start_time
+            if args.debug:
+                print(f"Took {time_took} to scan")
+            if data.temperature_unit == "F":
+                temperature = int(1.8 * temperature + 32)
+            temperature_hold.append(temperature)
+            humidity_hold.append(humidity)
+            update_graph()
+            
 
         # Update tk values
         tk_temperature.set(f"Temperature: {temperature} °{data.temperature_unit}")
@@ -798,6 +806,7 @@ def update_temperature_humidity():
         device.stop(dhtDevice)
         raise SystemExit(error)
     except KeyboardInterrupt:
+        device.stop(dhtDevice)
         raise SystemExit
 
 def update_graph():
