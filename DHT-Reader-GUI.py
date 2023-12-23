@@ -23,13 +23,51 @@ except Exception as e:
     raise SystemExit(f"Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter\n{e}")
 
 
-version = "v0.4b Beta"
+version = "v0.4c Beta"
         
-# A converter for dht name
-# Also if flag is set to 1 it checks for correct name
-
-# Reads or writes to/from the config file, depends on flag
-
+class Theme:
+    def __init__(self):
+        self.background_main = "white"
+        self.background_errors_logs = "white"
+        self.background_title = "lightgray"
+        self.background_button = "lightgray"
+        self.foreground_main = "black"
+        self.foreground_logs = "black"
+        self.foreground_errors = "red"
+    def change(self, theme):
+        if theme == "default-black":
+            self.background_main = "black"
+            self.background_errors_logs = "black"
+            self.background_title = "gray"
+            self.background_button = "#3d3d5c"
+            self.foreground_main = "white"
+            self.foreground_logs = "white"
+            self.foreground_errors = "red"
+        elif theme == "classic-white":
+            self.background_main = "black"
+            self.background_errors_logs = "black"
+            self.background_title = "purple"
+            self.background_button = "#3d3d5c"
+            self.foreground_main = "white"
+            self.foreground_logs = "white"
+            self.foreground_errors = "red"
+        elif theme == "classic-blue":
+            self.background_main = "blue"
+            self.background_errors_logs = "blue"
+            self.background_title = "gray"
+            self.background_button = "#3d3d5c"
+            self.foreground_main = "white"
+            self.foreground_logs = "white"
+            self.foreground_errors = "red"
+        else:
+            self.background_main = "white"
+            self.background_errors_logs = "white"
+            self.background_title = "lightgray"
+            self.background_button = "lightgray"
+            self.foreground_main = "black"
+            self.foreground_logs = "black"
+            self.foreground_errors = "red"                    
+    
 
 def insert_log_error(flag, log_msg = "", error_msg = ""):
     """
@@ -62,43 +100,9 @@ def insert_log_error(flag, log_msg = "", error_msg = ""):
             print(log_msg)
             print(error_msg)
 
-def change_theme(select):
-    global background_main, background_errors_logs, background_title,background_button, foreground_main, foreground_logs, foreground_errors
-    if select == 0:
-        background_main = "white"
-        background_errors_logs = "white"
-        background_title = "lightgray"
-        background_button = "lightgray"
-        foreground_main = "black"
-        foreground_logs = "black"
-        foreground_errors = "red"
-    elif select == 1:
-        background_main = "black"
-        background_errors_logs = "black"
-        background_title = "gray"
-        background_button = "#3d3d5c"
-        foreground_main = "white"
-        foreground_logs = "white"
-        foreground_errors = "red"
-    elif select == 2:
-        background_main = "black"
-        background_errors_logs = "black"
-        background_title = "purple"
-        background_button = "#3d3d5c"
-        foreground_main = "white"
-        foreground_logs = "white"
-        foreground_errors = "red"
-    elif select == 3:
-        background_main = "blue"
-        background_errors_logs = "blue"
-        background_title = "gray"
-        background_button = "#3d3d5c"
-        foreground_main = "white"
-        foreground_logs = "white"
-        foreground_errors = "red"
 
 def auto_detect(flag = 0, scan_all = 1, first_pin = 0, last_pin = 20):
-    global dhtDevice
+    global dht_device
     pin = 0
     allow_pulseio = 1
     devices = ["DHT11","DHT21","DHT22"]
@@ -136,7 +140,7 @@ def auto_detect(flag = 0, scan_all = 1, first_pin = 0, last_pin = 20):
                 try:
                     if pin == 7 or pin == 8:
                         continue
-                    dhtDevice = device.re_init(None,dhtDevice, device_model, pin, bool(allow_pulseio))
+                    dht_device = device.re_init(None,dht_device, device_model, pin, bool(allow_pulseio))
                     msg = f"Checking pin {pin}"
                     if flag == 1:
                         autodetect_listbox.insert(tk.END, msg)
@@ -144,8 +148,8 @@ def auto_detect(flag = 0, scan_all = 1, first_pin = 0, last_pin = 20):
                         progress_bar["value"] += 1
                         autodetect_listbox.update_idletasks()
                     print(msg)
-                    temperature = dhtDevice.temperature
-                    humidity = dhtDevice.humidity
+                    temperature = dht_device.temperature
+                    humidity = dht_device.humidity
                     print(temperature,humidity)
                     msg = f"Detected {current_device} at pin {pin} (Pulseio is set to {bool(allow_pulseio)})"
                     if flag == 1:
@@ -192,6 +196,7 @@ parser.add_argument('--autodetect', action='store_true', help='Auto detect devic
 args = parser.parse_args()
 data = config.Data()
 program_data = config.ProgramData()
+theme = Theme()
 
 if not args.skip:
     if config.check():
@@ -199,10 +204,10 @@ if not args.skip:
     else:
         config.create(data)
 
-global dhtDevice
-dhtDevice = device.init(data)
+global dht_device
+dht_device = device.init(data)
 
-change_theme(data.select_theme)
+theme.change(data.select_theme)
 
 old_delay_sec = data.delay_sec
 delay_sec = old_delay_sec
@@ -232,7 +237,7 @@ def on_autodetect():
     first_pin = 0
     last_pin = 20
     s = ttk.Style()
-    s.configure("Custom.TLabelframe", background=background_main)
+    s.configure("Custom.TLabelframe", background=theme.background_main)
 
     def on_close_autodetect():
         autodetect_window.destroy()
@@ -285,7 +290,7 @@ def on_autodetect():
     last_pin_entry.bind("<Return>", on_enter_last_pin)
 
     # Create a Listbox widget
-    autodetect_listbox = tk.Listbox(window_frame, selectmode=tk.SINGLE, bg=background_errors_logs, fg=foreground_logs)
+    autodetect_listbox = tk.Listbox(window_frame, selectmode=tk.SINGLE, bg=theme.background_errors_logs, fg=theme.foreground_logs)
     autodetect_listbox.grid(row=0, column=1, rowspan=3, sticky="nsew")
 
     # Create a Scrollbar widget
@@ -314,15 +319,15 @@ def on_settings():
         data.device_model = option_var.get()
         tk_device.set(f"Device: {data.device_model}")
         insert_log_error(1,f"Device was changed to {data.device_model}")
-        global dhtDevice
-        dhtDevice = device.re_init(data,dhtDevice)
+        global dht_device
+        dht_device = device.re_init(data,dht_device)
     
     def on_pin_entry_return(event):
         data.pin = pin_entry_var.get()
         tk_pin.set(f"Pin: {data.pin}")
         insert_log_error(1,f"Pin was changed to {data.pin}")
-        global dhtDevice
-        dhtDevice = device.re_init(data, dhtDevice)
+        global dht_device
+        dht_device = device.re_init(data, dht_device)
     
     def on_checkbox_change(option):
         if option == 0:
@@ -338,8 +343,8 @@ def on_settings():
         elif option == 3:
             data.allow_pulseio = not data.allow_pulseio
             insert_log_error(1,f"Using Pulseio is set to {data.allow_pulseio}")
-            global dhtDevice
-            dhtDevice = device.re_init(data, dhtDevice) 
+            global dht_device
+            dht_device = device.re_init(data, dht_device) 
         elif option == 4:
             data.reset_data = not data.reset_data
             insert_log_error(1,f"Reset data at startup is set to {data.reset_data}")
@@ -404,9 +409,7 @@ def on_settings():
                 insert_log_error(1,f"debug: delay value is too small to decrease --> {data.delay_sec}")
 
     def on_theme_select(select):
-        global select_theme
-        themes_options = ["Default (white)", "Default (black)", "Classic (black)", "Classic (Blue)"]
-        select_theme  = themes_options.index(select)
+        data.select_theme  = select
         insert_log_error(1,f"Theme selected: {select}")
         
     def on_select(event):
@@ -462,7 +465,7 @@ def on_settings():
                 # Pin Entry
                 pin_entry_var = tk.StringVar(entry_frame)
                 pin_entry_var.set(data.pin)  # Set the default value to the current variable
-                pin_entry = tk.Entry(entry_frame, textvariable=pin_entry_var,bg=background_main, fg=foreground_main)
+                pin_entry = tk.Entry(entry_frame, textvariable=pin_entry_var,bg=theme.background_main, fg=theme.foreground_main)
                 pin_entry.pack(anchor="w")
                 
                 # Bind the "Return" key event to the Entry widget
@@ -532,7 +535,7 @@ def on_settings():
                 # txt Entry
                 txt_filename_entry_var = tk.StringVar(entry_frame)
                 txt_filename_entry_var.set(data.txt_filename)  # Set the default value to the current variable
-                txt_filename_entry = tk.Entry(entry_frame, textvariable=txt_filename_entry_var, bg=background_main, fg=foreground_main)
+                txt_filename_entry = tk.Entry(entry_frame, textvariable=txt_filename_entry_var, bg=theme.background_main, fg=theme.foreground_main)
                 txt_filename_entry.pack(anchor="w")
                 
                 # Bind the "Return" key event to the Entry widget
@@ -545,7 +548,7 @@ def on_settings():
                 # excel Entry
                 excel_filename_entry_var = tk.StringVar(entry_frame)
                 excel_filename_entry_var.set(data.xl_filename)  # Set the default value to the current variable
-                excel_filename_entry = tk.Entry(entry_frame, textvariable=excel_filename_entry_var, bg=background_main, fg=foreground_main)
+                excel_filename_entry = tk.Entry(entry_frame, textvariable=excel_filename_entry_var, bg=theme.background_main, fg=theme.foreground_main)
                 excel_filename_entry.pack(anchor="w")
                 
                 # Bind the "Return" key event to the Entry widget
@@ -558,7 +561,7 @@ def on_settings():
                 # excel Entry
                 img_filename_entry_var = tk.StringVar(entry_frame)
                 img_filename_entry_var.set(data.img_filename)  # Set the default value to the current variable
-                img_filename_entry = tk.Entry(entry_frame, textvariable=img_filename_entry_var, bg=background_main, fg=foreground_main)
+                img_filename_entry = tk.Entry(entry_frame, textvariable=img_filename_entry_var, bg=theme.background_main, fg=theme.foreground_main)
                 img_filename_entry.pack(anchor="w")
                 
                 # Bind the "Return" key event to the Entry widget
@@ -603,9 +606,9 @@ def on_settings():
                 temperature_unit_label = ttk.Label(temperature_unit_frame, text="Unit: ")
                 temperature_unit_label.pack(side="left")
                 
-                c_unit_button = tk.Button(temperature_unit_frame, text ="°C", command = lambda: change_temperature_unit("C"), bg=background_button, fg=foreground_main)
+                c_unit_button = tk.Button(temperature_unit_frame, text ="°C", command = lambda: change_temperature_unit("C"), bg=theme.background_button, fg=theme.foreground_main)
                 c_unit_button.pack(side="left")
-                f_unit_button = tk.Button(temperature_unit_frame, text ="°F", command = lambda: change_temperature_unit("F"), bg=background_button, fg=foreground_main)
+                f_unit_button = tk.Button(temperature_unit_frame, text ="°F", command = lambda: change_temperature_unit("F"), bg=theme.background_button, fg=theme.foreground_main)
                 f_unit_button.pack(side="left")
                 
                 # Set the initial relief of the buttons based on the current temperature_unit
@@ -615,11 +618,11 @@ def on_settings():
                 graph_change_frame = ttk.LabelFrame(general_frame, text="Change graph", padding=5)
                 graph_change_frame.pack(anchor="nw")
                 
-                T_graph_change_button = tk.Button(graph_change_frame, text ="Only Temperature", command = lambda: change_graph("T"), bg=background_button, fg=foreground_main)
+                T_graph_change_button = tk.Button(graph_change_frame, text ="Only Temperature", command = lambda: change_graph("T"), bg=theme.background_button, fg=theme.foreground_main)
                 T_graph_change_button.pack(side="left")
-                T_H_graph_change_button = tk.Button(graph_change_frame, text ="Both", command = lambda: change_graph("Both"), bg=background_button, fg=foreground_main)
+                T_H_graph_change_button = tk.Button(graph_change_frame, text ="Both", command = lambda: change_graph("Both"), bg=theme.background_button, fg=theme.foreground_main)
                 T_H_graph_change_button.pack(side="left")
-                H_graph_change_button = tk.Button(graph_change_frame, text ="Only Humidity", command = lambda: change_graph("H"), bg=background_button, fg=foreground_main)
+                H_graph_change_button = tk.Button(graph_change_frame, text ="Only Humidity", command = lambda: change_graph("H"), bg=theme.background_button, fg=theme.foreground_main)
                 H_graph_change_button.pack(side="left")
                 
                 # Set the initial relief of the buttons based on the current graph_show
@@ -630,35 +633,28 @@ def on_settings():
                 delay_change_frame = ttk.LabelFrame(general_frame, text="Change delay", padding=5)
                 delay_change_frame.pack(anchor="nw")
                 
-                delay_decrease_button = tk.Button(delay_change_frame, text ="-", command = lambda: on_change_delay(data.delay_sec-1),bg=background_button, fg=foreground_main)
+                delay_decrease_button = tk.Button(delay_change_frame, text ="-", command = lambda: on_change_delay(data.delay_sec-1),bg=theme.background_button, fg=theme.foreground_main)
                 delay_decrease_button.pack(side="left")
                 
                 # delay Entry
                 delay_entry_var = tk.IntVar(delay_change_frame)
                 delay_entry_var.set(data.delay_sec)  # Set the default value to the current variable
-                delay_change_entry = tk.Entry(delay_change_frame, textvariable=delay_entry_var,bg=background_main, fg=foreground_main)
+                delay_change_entry = tk.Entry(delay_change_frame, textvariable=delay_entry_var,bg=theme.background_main, fg=theme.foreground_main)
                 delay_change_entry.pack(side="left")
                 
                 # Bind the "Return" key event to the Entry widget
                 delay_change_entry.bind("<Return>", lambda event: on_change_delay(delay_entry_var,1))   
                 
-                delay_increase_button = tk.Button(delay_change_frame, text ="+", command = lambda: on_change_delay(data.delay_sec+1),bg=background_button, fg=foreground_main)
+                delay_increase_button = tk.Button(delay_change_frame, text ="+", command = lambda: on_change_delay(data.delay_sec+1),bg=theme.background_button, fg=theme.foreground_main)
                 delay_increase_button.pack(side="left")
                 
                 # Create a new frame to hold the theme change widgets
                 theme_change_frame = ttk.LabelFrame(general_frame, text="Change theme", padding=5)
                 theme_change_frame.pack(anchor="nw")
                                 
-                themes_options = ["Default (white)", "Default (black)", "Classic (black)", "Classic (Blue)"]
+                themes_options = ["default-white", "default-black", "classic-black", "classic-blue"]
                 option_var = tk.StringVar(theme_change_frame)
-                if data.select_theme == 0: # Set the default option (depends on the select_theme variable)
-                    option_var.set(themes_options[0])
-                elif data.select_theme == 1:
-                    option_var.set(themes_options[1])  
-                elif data.select_theme == 2:
-                    option_var.set(themes_options[2])  
-                elif data.select_theme == 3:
-                    option_var.set(themes_options[3]) 
+                option_var.set(data.select_theme) 
                     
                 theme_label = ttk.Label(theme_change_frame, text="Current theme: ")
                 theme_label.pack(side="left")
@@ -702,8 +698,8 @@ def on_settings():
     settings_window.grid_columnconfigure(1, weight=7)  # 70% width
     
     # Create four subframes for the grids
-    frame_left = tk.Frame(master=settings_window, bg=background_main)
-    frame_right = tk.Frame(master=settings_window, bg=background_main)
+    frame_left = tk.Frame(master=settings_window, bg=theme.background_main)
+    frame_right = tk.Frame(master=settings_window, bg=theme.background_main)
 
     # Grid layout for the four subframes
     frame_left.grid(row=0, column=0, sticky="nsew")
@@ -715,7 +711,7 @@ def on_settings():
 
     # Create a Listbox with some options
     options = [f"Device & Pin", f"Data Save & Reset", "General"]
-    listbox = tk.Listbox(listbox_container, selectmode=tk.SINGLE, bg=background_main, fg=foreground_main)
+    listbox = tk.Listbox(listbox_container, selectmode=tk.SINGLE, bg=theme.background_main, fg=theme.foreground_main)
     for option in options:
         listbox.insert(tk.END, option)
 
@@ -731,7 +727,7 @@ def on_settings():
     settings_window.mainloop()
 
 def on_close():
-    device.stop(dhtDevice)
+    device.stop(dht_device)
     print("DHT device disabled, closing the program")
     window.destroy()
     try:
@@ -753,7 +749,7 @@ def update_temperature_humidity():
     try:
         if delay_sec == old_delay_sec:
             start_time = get_time.time_s()
-            temperature, humidity = device.get_data(dhtDevice)
+            temperature, humidity = device.get_data(dht_device)
             if not temperature:
                 insert_log_error(3,f"Error happened at {get_time.date()}, retrying in 1 sec",humidity)
                 # Try to do a scan in a second
@@ -803,10 +799,10 @@ def update_temperature_humidity():
             
     
     except Exception as error:
-        device.stop(dhtDevice)
+        device.stop(dht_device)
         raise SystemExit(error)
     except KeyboardInterrupt:
-        device.stop(dhtDevice)
+        device.stop(dht_device)
         raise SystemExit
 
 def update_graph():
@@ -840,7 +836,7 @@ window.grid_rowconfigure(0, weight=1)
 window.grid_columnconfigure(0, weight=1)
 
 # Create four subframes for the grids
-frame_top_left = tk.Frame(master=window, bg=background_main)
+frame_top_left = tk.Frame(master=window, bg=theme.background_main)
 frame_top_right = tk.Frame(master=window, bg="white")
 frame_bottom_left = tk.Frame(master=window, bg="white")
 frame_bottom_right = tk.Frame(master=window, bg="white")
@@ -870,21 +866,21 @@ frame_graph.grid(row=0, column=1, rowspan=3, padx=1, pady=1)
 # Subframe: Top Right (Graph)
 # Create the figure and axis for the interactive graph
 
-graph_label = tk.Label(frame_top_right, text="Graph", bg=background_title, fg=foreground_main)
+graph_label = tk.Label(frame_top_right, text="Graph", bg=theme.background_title, fg=theme.foreground_main)
 graph_label.pack(fill="x", padx=1)
 
-fig = Figure(figsize=(5,4), dpi=100, facecolor=background_main)
+fig = Figure(figsize=(5,4), dpi=100, facecolor=theme.background_main)
 a = fig.add_subplot(111)
 a.set_xlabel('Time')
 a.set_ylabel('Value')
-a.tick_params(axis='x', colors=foreground_main)
-a.tick_params(axis='y', colors=foreground_main)
-a.spines['top'].set_color(foreground_main)
-a.spines['bottom'].set_color(foreground_main)
-a.spines['left'].set_color(foreground_main)
-a.spines['right'].set_color(foreground_main)
+a.tick_params(axis='x', colors=theme.foreground_main)
+a.tick_params(axis='y', colors=theme.foreground_main)
+a.spines['top'].set_color(theme.foreground_main)
+a.spines['bottom'].set_color(theme.foreground_main)
+a.spines['left'].set_color(theme.foreground_main)
+a.spines['right'].set_color(theme.foreground_main)
 
-a.set_facecolor(background_main)
+a.set_facecolor(theme.background_main)
 
 # Create the legend and set its properties
 legend = a.legend()
@@ -907,45 +903,45 @@ delay_progress_bar.pack(fill="x", padx=20, pady=5)
 # Subframe: Top Left (Information)
 # Labels and Entry widgets
 
-information_label = tk.Label(frame_top_left, text="Information", bg=background_title, fg=foreground_main)
+information_label = tk.Label(frame_top_left, text="Information", bg=theme.background_title, fg=theme.foreground_main)
 information_label.pack(fill="x", padx=1)
 
-device_label = tk.Label(frame_top_left, textvariable=tk_device, anchor="nw", bg=background_main, fg=foreground_main)
+device_label = tk.Label(frame_top_left, textvariable=tk_device, anchor="nw", bg=theme.background_main, fg=theme.foreground_main)
 device_label.pack(fill="x")
 
-pin_label = tk.Label(frame_top_left, textvariable=tk_pin, anchor="nw", bg=background_main,fg=foreground_main)
+pin_label = tk.Label(frame_top_left, textvariable=tk_pin, anchor="nw", bg=theme.background_main,fg=theme.foreground_main)
 pin_label.pack(fill="x")
 
-temperature_label = tk.Label(frame_top_left, textvariable=tk_temperature, anchor="nw", bg=background_main,fg=foreground_main)
+temperature_label = tk.Label(frame_top_left, textvariable=tk_temperature, anchor="nw", bg=theme.background_main,fg=theme.foreground_main)
 temperature_label.pack(fill="x")
 
-humidity_label = tk.Label(frame_top_left, textvariable=tk_humidity, anchor="nw", bg=background_main,fg=foreground_main)
+humidity_label = tk.Label(frame_top_left, textvariable=tk_humidity, anchor="nw", bg=theme.background_main,fg=theme.foreground_main)
 humidity_label.pack(fill="x")
 
-countdown_label = tk.Label(frame_top_left, textvariable=tk_countdown, anchor="nw", bg=background_main,fg=foreground_main)
+countdown_label = tk.Label(frame_top_left, textvariable=tk_countdown, anchor="nw", bg=theme.background_main,fg=theme.foreground_main)
 countdown_label.pack(fill="x")
 
 # Create a new frame to hold the button widgets
 button_frame = tk.Frame(frame_top_left)
 button_frame.pack(side="bottom",fill="x")
 
-graph_reset_button = tk.Button(button_frame, text ="Reset graph", command = reset_values, bg=background_button, fg=foreground_main)
+graph_reset_button = tk.Button(button_frame, text ="Reset graph", command = reset_values, bg=theme.background_button, fg=theme.foreground_main)
 graph_reset_button.pack(fill="x",side="left")
 
-settings_button = tk.Button(button_frame, text ="Settings", command = on_settings,bg=background_button, fg=foreground_main)
+settings_button = tk.Button(button_frame, text ="Settings", command = on_settings,bg=theme.background_button, fg=theme.foreground_main)
 settings_button.pack(fill="x")
 
 if args.debug:
     tk_debug = tk.StringVar(window)
-    debug_label = tk.Label(frame_top_left, textvariable=tk_debug, anchor="sw", bg=background_main)
+    debug_label = tk.Label(frame_top_left, textvariable=tk_debug, anchor="sw", bg=theme.background_main)
     debug_label.pack(side="bottom",fill="x")
 # Subframe: Bottom Left (Logs)
 # Labels and Entry widgets
-logs_label = tk.Label(frame_bottom_left, text="Logs", bg=background_title, fg=foreground_main)
+logs_label = tk.Label(frame_bottom_left, text="Logs", bg=theme.background_title, fg=theme.foreground_main)
 logs_label.pack(fill="x")
 
 # Create a Listbox widget
-logs_listbox = tk.Listbox(frame_bottom_left, selectmode=tk.SINGLE,  bg=background_errors_logs, fg = foreground_logs)
+logs_listbox = tk.Listbox(frame_bottom_left, selectmode=tk.SINGLE,  bg=theme.background_errors_logs, fg = theme.foreground_logs)
 
 # Create a Scrollbar widget
 logs_scrollbar = tk.Scrollbar(frame_bottom_left, command=logs_listbox.yview)
@@ -959,11 +955,11 @@ logs_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 # Subframe: Bottom Right (Errors)
 
 # Labels and Entry widgets
-errors_label = tk.Label(frame_bottom_right, text="Errors", bg=background_title, fg=foreground_main)
+errors_label = tk.Label(frame_bottom_right, text="Errors", bg=theme.background_title, fg=theme.foreground_main)
 errors_label.pack(fill="x",padx=1)
 
 # Create a Listbox widget
-errors_listbox = tk.Listbox(frame_bottom_right, selectmode=tk.SINGLE, bg=background_errors_logs, fg = foreground_errors)
+errors_listbox = tk.Listbox(frame_bottom_right, selectmode=tk.SINGLE, bg=theme.background_errors_logs, fg = theme.foreground_errors)
 
 # Create a Scrollbar widget
 errors_scrollbar = tk.Scrollbar(frame_bottom_right, command=errors_listbox.yview)

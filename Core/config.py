@@ -118,7 +118,7 @@ def read(data):
         data.delay_sec = config.getint('dhtreader', 'DelayTime')
         data.allow_pulseio = config.getboolean('dhtreader','UsePulseio')
         data.reset_data = config.getboolean('dhtreader','resetdata')
-        data.select_theme = config.getint('dhtreader','Theme')
+        data.select_theme = config.get('dhtreader','Theme')
         data.temperature_unit = config.get('dhtreader','TemperatureUnit')
         data.graph_environment = config.get('dhtreader','GraphEnviroment')
         data.txt_filename = config.get('dhtreader','TxtFilename')
