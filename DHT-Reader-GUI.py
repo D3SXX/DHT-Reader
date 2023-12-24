@@ -23,7 +23,7 @@ except Exception as e:
     raise SystemExit(f"Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter\n{e}")
 
 
-version = "v0.4c Beta"
+version = "v0.4d Beta"
         
 class Theme:
     def __init__(self):
@@ -101,86 +101,96 @@ def insert_log_error(flag, log_msg = "", error_msg = ""):
             print(error_msg)
 
 
-def auto_detect(flag = 0, scan_all = 1, first_pin = 0, last_pin = 20):
-    global dht_device
-    pin = 0
-    allow_pulseio = 1
-    devices = ["DHT11","DHT21","DHT22"]
-    if flag == 1:
-        if last_pin >= 7 and last_pin < 8:
+def auto_detect():
+
+    def update_gui_logs(msg, value=None):
+        if program_data.tmp_enable_gui:
+            autodetect_listbox.insert(tk.END, msg)
+            autodetect_listbox.see(tk.END)
+            if value:
+                progress_bar["value"] = program_data.tmp_max_value
+            else:
+                progress_bar["value"] += 1 
+    global dht_device, after_id
+    if program_data.tmp_enable_gui and not program_data.tmp_device_model:
+        if program_data.tmp_last_pin >= 7 and program_data.tmp_last_pin < 8:
             cut_val = 6
-        elif last_pin >= 8:
+        elif program_data.tmp_last_pin >= 8:
             cut_val = 12
         else:
             cut_val = 0
-        if first_pin > 0:
-            val = first_pin
+        if program_data.tmp_first_pin > 0:
+            val = program_data.tmp_first_pin
         else:
             val = 0
-        max_value_pg = (last_pin+1-first_pin)*3*2-cut_val+val
-        progress_bar["value"] = first_pin
-        progress_bar["maximum"] = max_value_pg
+        program_data.tmp_max_value = (program_data.tmp_last_pin+1-program_data.tmp_first_pin)*3*2-cut_val+val
+        progress_bar["value"] = program_data.tmp_first_pin
+        progress_bar["maximum"] = program_data.tmp_max_value
         
-    for current_device in devices:
-        msg = f"Checking the {current_device}"
-        if flag == 1:
-            autodetect_listbox.insert(tk.END, msg)
-            autodetect_listbox.see(tk.END)
-            autodetect_listbox.update_idletasks()
-        print(msg)
-        device_model = current_device
-        for allow_pulseio in range(1,-1,-1):
-            msg = f"Pulseio is set to {bool(allow_pulseio)}"
-            if flag == 1:
-                autodetect_listbox.insert(tk.END, msg)
-                autodetect_listbox.see(tk.END)
-                autodetect_listbox.update_idletasks()
+    if program_data.tmp_device_model is None:
+        program_data.tmp_pulseio = True
+        program_data.tmp_device_model = program_data.devices[program_data.devices.index(program_data.tmp_device_model)+1]
+        program_data.tmp_found_device = False
+        program_data.tmp_pin = program_data.tmp_first_pin
+    if program_data.tmp_pin == program_data.tmp_last_pin:
+        print( program_data.devices.index(program_data.tmp_device_model),len(program_data.devices)-1)
+        if program_data.devices.index(program_data.tmp_device_model) < len(program_data.devices)-1:
+            program_data.tmp_pin = program_data.tmp_first_pin
+            if program_data.tmp_pulseio:
+                program_data.tmp_pulseio = False
+                msg = f"Pulseio is set to {program_data.tmp_pulseio}"
+                print(msg)
+                update_gui_logs(msg)
+            else:
+                program_data.tmp_pulseio = True
+                program_data.tmp_device_model = program_data.devices[program_data.devices.index(program_data.tmp_device_model)+1]
+            msg = f"Checking the {program_data.tmp_device_model}"
             print(msg)
-            for pin in range(first_pin,last_pin+1):
-                try:
-                    if pin == 7 or pin == 8:
-                        continue
-                    dht_device = device.re_init(None,dht_device, device_model, pin, bool(allow_pulseio))
-                    msg = f"Checking pin {pin}"
-                    if flag == 1:
-                        autodetect_listbox.insert(tk.END, msg)
-                        autodetect_listbox.see(tk.END)
-                        progress_bar["value"] += 1
-                        autodetect_listbox.update_idletasks()
-                    print(msg)
-                    temperature = dht_device.temperature
-                    humidity = dht_device.humidity
-                    print(temperature,humidity)
-                    msg = f"Detected {current_device} at pin {pin} (Pulseio is set to {bool(allow_pulseio)})"
-                    if flag == 1:
-                        autodetect_listbox.insert(tk.END, msg)
-                        autodetect_listbox.see(tk.END)
-                        if scan_all == 0:
-                            progress_bar["value"] = max_value_pg
-                        autodetect_listbox.update_idletasks()
-                    print(msg)
-                    tk_device.set(f"Device: {current_device}")
-                    tk_pin.set(f"Pin: {pin}")
-                    if scan_all == 0:
-                        return 0
-                except RuntimeError as error:
-                    if str(error) == "DHT sensor not found, check wiring":
-                        print(f"Error: {error}")
-                        
-                    else:
-                        print(error)
-                        msg = f"Detected {current_device} at pin {pin} (Pulseio is set to {bool(allow_pulseio)})"
-                        if flag == 1:
-                            autodetect_listbox.insert(tk.END, msg)
-                            autodetect_listbox.see(tk.END)
-                            if scan_all == 0:
-                                progress_bar["value"] = max_value_pg
-                            autodetect_listbox.update_idletasks()
-                        print(msg)
-                        tk_device.set(f"Device: {current_device}")
-                        tk_pin.set(f"Pin: {pin}")
-                        if scan_all == 0:
-                            return 0
+            update_gui_logs(msg)
+        else:
+            return
+    else:
+        program_data.tmp_pin += 1
+
+    try:
+        if program_data.tmp_pin == 7 or program_data.tmp_pin == 8:
+            after_id = autodetect_window.after(50,auto_detect)
+            return
+        dht_device = device.re_init(None,dht_device, program_data.tmp_device_model, program_data.tmp_pin, program_data.tmp_pulseio)
+        msg = f"Checking pin {program_data.tmp_pin}"
+        print(msg)
+        update_gui_logs(msg)
+        temperature = dht_device.temperature
+        humidity = dht_device.humidity
+        print(temperature,humidity)
+        msg = f"Detected {program_data.tmp_device_model} at pin {program_data.tmp_pin} (Pulseio is set to {program_data.tmp_pulseio})"
+        program_data.tmp_found_device = True
+        update_gui_logs(msg,program_data.tmp_scan_all_pins)
+        print(msg)
+        if program_data.tmp_enable_gui:
+            tk_device.set(f"Device: {program_data.tmp_device_model}")
+            tk_pin.set(f"Pin: {program_data.tmp_pin}")
+    except RuntimeError as error:
+        if str(error) == "DHT sensor not found, check wiring":
+            print(f"Error: {error}")                
+        else:
+            print(error)
+            msg = f"Detected {program_data.tmp_device_model} at pin {program_data.tmp_pin} (Pulseio is set to {program_data.tmp_pulseio})"
+            program_data.tmp_found_device = True
+            update_gui_logs(msg,True)
+            print(msg)
+            if program_data.tmp_enable_gui:
+                tk_device.set(f"Device: {program_data.tmp_device_model}")
+                tk_pin.set(f"Pin: {program_data.tmp_pin}")
+    if not program_data.tmp_scan_all_pins and program_data.tmp_found_device:
+        return
+    else:
+        after_id = autodetect_window.after(50,auto_detect)
+
+       
+                #autodetect_listbox.insert(tk.END, msg)
+                #autodetect_listbox.see(tk.END)
+                #autodetect_listbox.update_idletasks()
 
 # Array for holding temperature and humidity
 temperature_hold = []
@@ -214,26 +224,32 @@ delay_sec = old_delay_sec
 
 def on_autodetect():
     def change_scan_all():
-        global scan_all
-        scan_all = not bool(scan_all)
+        program_data.tmp_scan_all_pins = not program_data.tmp_scan_all_pins
         if args.debug:
-            insert_log_error(1, f"scan_all is set to {scan_all}")
+            insert_log_error(1, f"scan_all is set to {program_data.tmp_scan_all_pins}")
 
     def on_enter_first_pin(event):
-        global first_pin
-        first_pin = int(first_pin_entry.get())
+        program_data.tmp_first_pin = int(first_pin_entry.get())
         if args.debug:
-            insert_log_error(1, f"first_pin is set to {first_pin}")
+            insert_log_error(1, f"first_pin is set to {program_data.tmp_first_pin}")
 
     def on_enter_last_pin(event):
-        global last_pin
-        last_pin = int(last_pin_entry.get())
+        program_data.tmp_last_pin = int(last_pin_entry.get())
         if args.debug:
-            insert_log_error(1, f"last_pin is set to {last_pin}")
+            insert_log_error(1, f"last_pin is set to {program_data.tmp_last_pin}")
 
-    global autodetect_listbox, progress_bar, scan_all, first_pin, last_pin
+    def on_start():
+        program_data.tmp_device_model = None
+        auto_detect()
 
-    scan_all = False
+    def on_stop():
+        global after_id
+        if after_id:
+            autodetect_window.after_cancel(after_id)
+            after_id = None
+
+    global autodetect_listbox, progress_bar, scan_all, first_pin, last_pin,autodetect_window
+
     first_pin = 0
     last_pin = 20
     s = ttk.Style()
@@ -256,16 +272,19 @@ def on_autodetect():
     # Create a new frame to hold the Auto detect widgets
     window_frame = ttk.Frame(master=autodetect_window, style="Custom.TFrame")
     window_frame.pack(fill="both", expand=True)
-
-    autodetect_frame_button = ttk.Button(window_frame, text="Detect Device", command=lambda: auto_detect(1, int(scan_all), first_pin, last_pin), style="Custom.TButton")
-    autodetect_frame_button.grid(row=0, column=0)
     
-    scan_all_checkbox = tk.Checkbutton(window_frame, text="Don't stop scanning",command=change_scan_all)
+    controls_frame = ttk.LabelFrame(window_frame, text="Controls", padding=5, style="Custom.TLabelframe")
+    controls_frame.grid(row=0, column=0, sticky="ew")
+    autodetect_frame_button = ttk.Button(controls_frame, text="Detect Device", command=on_start, style="Custom.TButton")
+    autodetect_frame_button.grid(row=0, column=0,sticky="nsew")
+    stop_frame_button = ttk.Button(controls_frame, text="Stop", command=on_stop, style="Custom.TButton")
+    stop_frame_button.grid(row=0, column=1,sticky="nsew")    
+    scan_all_checkbox = tk.Checkbutton(controls_frame, text="Don't stop scanning",command=change_scan_all)
     scan_all_checkbox.grid(row=1, column=0)
     
-    if scan_all:
+    if program_data.tmp_scan_all_pins:
         scan_all_checkbox.state(['selected'])
-
+    program_data.tmp_enable_gui = True
     # Create a LabelFrame to group the label and entries
     pins_frame = ttk.LabelFrame(window_frame, text="First and last pins to scan", padding=5, style="Custom.TLabelframe")
     pins_frame.grid(row=2, column=0, sticky="ew")
@@ -971,7 +990,7 @@ errors_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 errors_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
 if args.autodetect:
-    auto_detect(0,0)
+    auto_detect()
 
 if args.debug:
     insert_log_error(1,"Debug mode activated with --debug")

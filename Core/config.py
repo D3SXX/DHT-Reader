@@ -33,12 +33,21 @@ class Data:
 
 class ProgramData:
     """
-    Data class with pre-defined default values for temporary files
+    Data class with pre-defined default values for temporary files and program settings
     """
     tmp_folderpath  = "Tmp/"
     xl_tmp_filename = "xl_tmp"
     img_tmp_filename = "img_tmp"
-    
+    devices = [None,"DHT11","DHT21","DHT22"]
+    tmp_device_model = None
+    tmp_first_pin = 0
+    tmp_last_pin = 20
+    tmp_pulseio = True
+    tmp_pin = 0
+    tmp_found_device = False
+    tmp_max_value = 0
+    tmp_enable_gui = False
+    tmp_scan_all_pins = False
 
 def create(data):
     """
