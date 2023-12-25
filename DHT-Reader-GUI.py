@@ -1,4 +1,4 @@
-#DHT Reader v0.3 hotfix 2 by D3SXX
+#DHT Reader v0.4 Beta by D3SXX
 
 try:
     import os
@@ -23,7 +23,7 @@ except Exception as e:
     raise SystemExit(f"Some dependencies are missing. Please run the following command to install them:\npip3 install adafruit_blinka adafruit-circuitpython-dht matplotlib xlsxwriter\n{e}")
 
 
-version = "v0.4d Beta"
+version = "v0.4e Beta"
         
 class Theme:
     def __init__(self):
@@ -103,14 +103,21 @@ def insert_log_error(flag, log_msg = "", error_msg = ""):
 
 def auto_detect():
 
-    def update_gui_logs(msg, value=None):
+
+
+    def update_gui_logs(msg, flag):
         if program_data.tmp_enable_gui:
             autodetect_listbox.insert(tk.END, msg)
             autodetect_listbox.see(tk.END)
-            if value:
+            if flag:
                 progress_bar["value"] = program_data.tmp_max_value
             else:
                 progress_bar["value"] += 1 
+    def output(msg, flag=None):
+        if program_data.tmp_enable_gui:
+            update_gui_logs(msg,flag)
+        else:
+            print(msg)
     global dht_device, after_id
     if program_data.tmp_enable_gui and not program_data.tmp_device_model:
         if program_data.tmp_last_pin >= 7 and program_data.tmp_last_pin < 8:
@@ -133,20 +140,15 @@ def auto_detect():
         program_data.tmp_found_device = False
         program_data.tmp_pin = program_data.tmp_first_pin
     if program_data.tmp_pin == program_data.tmp_last_pin:
-        print( program_data.devices.index(program_data.tmp_device_model),len(program_data.devices)-1)
         if program_data.devices.index(program_data.tmp_device_model) < len(program_data.devices)-1:
             program_data.tmp_pin = program_data.tmp_first_pin
             if program_data.tmp_pulseio:
                 program_data.tmp_pulseio = False
-                msg = f"Pulseio is set to {program_data.tmp_pulseio}"
-                print(msg)
-                update_gui_logs(msg)
+                output(f"Pulseio is set to {program_data.tmp_pulseio}")
             else:
                 program_data.tmp_pulseio = True
                 program_data.tmp_device_model = program_data.devices[program_data.devices.index(program_data.tmp_device_model)+1]
-            msg = f"Checking the {program_data.tmp_device_model}"
-            print(msg)
-            update_gui_logs(msg)
+            output(f"Checking the {program_data.tmp_device_model}")
         else:
             return
     else:
@@ -157,40 +159,29 @@ def auto_detect():
             after_id = autodetect_window.after(50,auto_detect)
             return
         dht_device = device.re_init(None,dht_device, program_data.tmp_device_model, program_data.tmp_pin, program_data.tmp_pulseio)
-        msg = f"Checking pin {program_data.tmp_pin}"
-        print(msg)
-        update_gui_logs(msg)
+        output(f"Checking pin {program_data.tmp_pin}")
         temperature = dht_device.temperature
         humidity = dht_device.humidity
-        print(temperature,humidity)
-        msg = f"Detected {program_data.tmp_device_model} at pin {program_data.tmp_pin} (Pulseio is set to {program_data.tmp_pulseio})"
+        output(f"Detected {program_data.tmp_device_model} at pin {program_data.tmp_pin} (Pulseio is set to {program_data.tmp_pulseio})")
         program_data.tmp_found_device = True
-        update_gui_logs(msg,program_data.tmp_scan_all_pins)
-        print(msg)
         if program_data.tmp_enable_gui:
             tk_device.set(f"Device: {program_data.tmp_device_model}")
             tk_pin.set(f"Pin: {program_data.tmp_pin}")
     except RuntimeError as error:
-        if str(error) == "DHT sensor not found, check wiring":
-            print(f"Error: {error}")                
-        else:
-            print(error)
-            msg = f"Detected {program_data.tmp_device_model} at pin {program_data.tmp_pin} (Pulseio is set to {program_data.tmp_pulseio})"
+        if not str(error) == "DHT sensor not found, check wiring":
             program_data.tmp_found_device = True
-            update_gui_logs(msg,True)
-            print(msg)
+            output(f"Detected {program_data.tmp_device_model} at pin {program_data.tmp_pin} (Pulseio is set to {program_data.tmp_pulseio})")
             if program_data.tmp_enable_gui:
                 tk_device.set(f"Device: {program_data.tmp_device_model}")
                 tk_pin.set(f"Pin: {program_data.tmp_pin}")
+                data.pin = program_data.tmp_pin
+                data.device_model = program_data.tmp_device_model
+                
     if not program_data.tmp_scan_all_pins and program_data.tmp_found_device:
+        output("Stopping seek", True)
         return
     else:
         after_id = autodetect_window.after(50,auto_detect)
-
-       
-                #autodetect_listbox.insert(tk.END, msg)
-                #autodetect_listbox.see(tk.END)
-                #autodetect_listbox.update_idletasks()
 
 # Array for holding temperature and humidity
 temperature_hold = []
@@ -219,8 +210,7 @@ dht_device = device.init(data)
 
 theme.change(data.select_theme)
 
-old_delay_sec = data.delay_sec
-delay_sec = old_delay_sec
+program_data.tmp_delay_sec = data.delay_sec
 
 def on_autodetect():
     def change_scan_all():
@@ -756,66 +746,48 @@ def on_close():
     raise SystemExit()
 
 def update_temperature_humidity():
-    global delay_sec
-    global old_delay_sec
-    global logs
-    global errors
-    global graph_width
-    global temperature
-    global humidity
     
-    delay_progress_bar["maximum"] = old_delay_sec
+    delay_progress_bar["maximum"] = program_data.tmp_delay_sec
     try:
-        if delay_sec == old_delay_sec:
+        if program_data.tmp_current_delay_sec == 0:
+            tk_countdown.set(f"The next update: 0 second(s)")
             start_time = get_time.time_s()
             temperature, humidity = device.get_data(dht_device)
             if not temperature:
                 insert_log_error(3,f"Error happened at {get_time.date()}, retrying in 1 sec",humidity)
-                # Try to do a scan in a second
+                tk_countdown.set(f"The next update: 1 second(s)")
                 window.after(1000, update_temperature_humidity)
                 return    
             time_took = get_time.time_s() - start_time
             if args.debug:
-                print(f"Took {time_took} to scan")
+                insert_log_error(1,f"Took {time_took} to scan")
             if data.temperature_unit == "F":
                 temperature = int(1.8 * temperature + 32)
             temperature_hold.append(temperature)
             humidity_hold.append(humidity)
             update_graph()
-            
-
-        # Update tk values
-        tk_temperature.set(f"Temperature: {temperature} °{data.temperature_unit}")
-        tk_humidity.set(f"Humidity: {humidity} %")
-        
-        if delay_sec != old_delay_sec:
-            delay_progress_bar["value"] += 1
-        else:
+            # Update tk values
+            tk_temperature.set(f"Temperature: {temperature} °{data.temperature_unit}")
+            tk_humidity.set(f"Humidity: {humidity} %")
+            program_data.tmp_current_delay_sec = program_data.tmp_delay_sec
             delay_progress_bar["value"] = 0
-        # Update the countdown variable
-        tk_countdown.set(f"The next update: {delay_sec} seconds")
-        delay_sec -= 1  # Decrement the delay
-
-        # Schedule the next update
-        if delay_sec >= 0:
-            window.after(1000, update_temperature_humidity)  # Schedule the next update after 1 second
         else:
-            delay_progress_bar["value"] += 1
-            tk_countdown.set(f"The next update: 0 seconds")  # Set countdown to 0 when the delay is complete
-            delay_sec = old_delay_sec
-            if not temperature == None:
-                if data.allow_txt:
-                    info_xl.extend(output.txt(temperature, humidity, data.txt_filename))
-                if data.allow_xl:
-                    info_xl.extend(output.xl(temperature, humidity, data.xl_filename,program_data.tmp_folderpath,program_data.xl_tmp_filename))
-                if data.allow_img:
-                    info_xl.extend(output.img(temperature, humidity, data.img_filename,program_data.tmp_folderpath, program_data.img_tmp_filename))
+            # Update the countdown variable
+            tk_countdown.set(f"The next update: {program_data.tmp_current_delay_sec} second(s)")
+            program_data.tmp_current_delay_sec -= 1  # Decrement the delay
+            delay_progress_bar["value"] = program_data.tmp_delay_sec - program_data.tmp_current_delay_sec
+            if data.allow_txt:
+                info_xl.extend(output.txt(temperature, humidity, data.txt_filename))
+            if data.allow_xl:
+                info_xl.extend(output.xl(temperature, humidity, data.xl_filename,program_data.tmp_folderpath,program_data.xl_tmp_filename))
+            if data.allow_img:
+                info_xl.extend(output.img(temperature, humidity, data.img_filename,program_data.tmp_folderpath, program_data.img_tmp_filename))
+                    
                 
-            
-            window.after(1000, update_temperature_humidity)
+        window.after(1000, update_temperature_humidity) # Schedule the next update after 1 second
         if args.debug:
             tk_debug.set(f"Debug Window: {window.winfo_width()}x{window.winfo_height()} Box1: {frame_top_left.winfo_width()}x{frame_top_left.winfo_height()}\nBox2: {frame_top_right.winfo_width()}x{frame_top_right.winfo_height()} Box3: {frame_bottom_left.winfo_width()}x{frame_bottom_left.winfo_height()}\nBox4: {frame_bottom_right.winfo_width()}x{frame_bottom_right.winfo_height()}")
-            
+                
     
     except Exception as error:
         device.stop(dht_device)
@@ -843,7 +815,9 @@ def reset_values():
     humidity_hold.clear()
     insert_log_error(1,"Graph was reset")
 
-
+def reset_delay():
+    program_data.tmp_current_delay_sec = 0
+    insert_log_error(1,"Skipped 1 cycle")
 window = tk.Tk()
 window.title("DHT Reader " + version)
 
@@ -873,7 +847,7 @@ tk_pin = tk.StringVar(window, f"Pin: {data.pin}")
 tk_temperature = tk.StringVar(window, "Temperature: ")
 tk_humidity = tk.StringVar(window, "Humidity: ")
 tk_countdown = tk.StringVar()
-tk_countdown.set(f"{data.delay_sec} seconds")
+tk_countdown.set(f"The next update: {program_data.tmp_current_delay_sec} second(s)")
 tk_logs = tk.StringVar(window)
 tk_errors = tk.StringVar(window)
 
@@ -946,6 +920,9 @@ button_frame.pack(side="bottom",fill="x")
 
 graph_reset_button = tk.Button(button_frame, text ="Reset graph", command = reset_values, bg=theme.background_button, fg=theme.foreground_main)
 graph_reset_button.pack(fill="x",side="left")
+
+delay_reset_button = tk.Button(button_frame, text ="Skip cycle", command = reset_delay, bg=theme.background_button, fg=theme.foreground_main)
+delay_reset_button.pack(fill="x",side="left")
 
 settings_button = tk.Button(button_frame, text ="Settings", command = on_settings,bg=theme.background_button, fg=theme.foreground_main)
 settings_button.pack(fill="x")

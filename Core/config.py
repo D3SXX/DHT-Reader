@@ -48,6 +48,8 @@ class ProgramData:
     tmp_max_value = 0
     tmp_enable_gui = False
     tmp_scan_all_pins = False
+    tmp_current_delay_sec = 0
+    tmp_delay_sec = 0
 
 def create(data):
     """
