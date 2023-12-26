@@ -68,7 +68,6 @@ class Theme:
             self.foreground_logs = "black"
             self.foreground_errors = "red"                    
     
-
 def insert_log_error(flag, log_msg = "", error_msg = ""):
     """
     Insert log or/and error string to appropriate GUI box
@@ -102,9 +101,7 @@ def insert_log_error(flag, log_msg = "", error_msg = ""):
 
 
 def auto_detect():
-
-
-
+    
     def update_gui_logs(msg, flag):
         if program_data.tmp_enable_gui:
             autodetect_listbox.insert(tk.END, msg)
@@ -189,7 +186,6 @@ humidity_hold = []
 info_xl = []
 
 
-
 parser = argparse.ArgumentParser(description='A DHT-Reader CLI Interface')
 parser.add_argument('--skip', action='store_true', help='Skip config check')
 parser.add_argument('--debug', action='store_true', help='Show debug info')
@@ -197,20 +193,19 @@ parser.add_argument('--autodetect', action='store_true', help='Auto detect devic
 args = parser.parse_args()
 data = config.Data()
 program_data = config.ProgramData()
-theme = Theme()
+def init():
+    global dht_device, data, program_data, theme
 
-if not args.skip:
-    if config.check():
-        config.read(data)
-    else:
-        config.create(data)
+    theme = Theme()
+    dht_device = device.init(data)
+    theme.change(data.select_theme)
+    program_data.tmp_delay_sec = data.delay_sec
+    if not args.skip:
+        if config.check():
+            config.read(data)
+        else:
+            config.create(data)
 
-global dht_device
-dht_device = device.init(data)
-
-theme.change(data.select_theme)
-
-program_data.tmp_delay_sec = data.delay_sec
 
 def on_autodetect():
     def change_scan_all():
@@ -274,7 +269,6 @@ def on_autodetect():
     
     if program_data.tmp_scan_all_pins:
         scan_all_checkbox.state(['selected'])
-    program_data.tmp_enable_gui = True
     # Create a LabelFrame to group the label and entries
     pins_frame = ttk.LabelFrame(window_frame, text="First and last pins to scan", padding=5, style="Custom.TLabelframe")
     pins_frame.grid(row=2, column=0, sticky="ew")
@@ -770,19 +764,19 @@ def update_temperature_humidity():
             tk_temperature.set(f"Temperature: {temperature} °{data.temperature_unit}")
             tk_humidity.set(f"Humidity: {humidity} %")
             program_data.tmp_current_delay_sec = program_data.tmp_delay_sec
+            if data.allow_txt:
+                info_xl.extend(output.txt(temperature_hold[-1], humidity_hold[-1], data.txt_filename))
+            if data.allow_xl:
+                info_xl.extend(output.xl(temperature_hold[-1], humidity_hold[-1], data.xl_filename,program_data.tmp_folderpath,program_data.xl_tmp_filename))
+            if data.allow_img:
+                info_xl.extend(output.img(temperature_hold[-1], humidity_hold[-1], data.img_filename,program_data.tmp_folderpath, program_data.img_tmp_filename))
+                    
             delay_progress_bar["value"] = 0
         else:
             # Update the countdown variable
             tk_countdown.set(f"The next update: {program_data.tmp_current_delay_sec} second(s)")
             program_data.tmp_current_delay_sec -= 1  # Decrement the delay
             delay_progress_bar["value"] = program_data.tmp_delay_sec - program_data.tmp_current_delay_sec
-            if data.allow_txt:
-                info_xl.extend(output.txt(temperature, humidity, data.txt_filename))
-            if data.allow_xl:
-                info_xl.extend(output.xl(temperature, humidity, data.xl_filename,program_data.tmp_folderpath,program_data.xl_tmp_filename))
-            if data.allow_img:
-                info_xl.extend(output.img(temperature, humidity, data.img_filename,program_data.tmp_folderpath, program_data.img_tmp_filename))
-                    
                 
         window.after(1000, update_temperature_humidity) # Schedule the next update after 1 second
         if args.debug:
@@ -821,162 +815,164 @@ def reset_delay():
 window = tk.Tk()
 window.title("DHT Reader " + version)
 
-# Set the minimum size for the window (width, height)
-window.minsize(800, 600)
+if __name__ == "__main__":
+    init()
+    # Set the minimum size for the window (width, height)
+    window.minsize(800, 600)
 
-# Define the layout using the grid geometry manager
-window.grid_rowconfigure(0, weight=1)
-window.grid_columnconfigure(0, weight=1)
+    # Define the layout using the grid geometry manager
+    window.grid_rowconfigure(0, weight=1)
+    window.grid_columnconfigure(0, weight=1)
 
-# Create four subframes for the grids
-frame_top_left = tk.Frame(master=window, bg=theme.background_main)
-frame_top_right = tk.Frame(master=window, bg="white")
-frame_bottom_left = tk.Frame(master=window, bg="white")
-frame_bottom_right = tk.Frame(master=window, bg="white")
+    # Create four subframes for the grids
+    frame_top_left = tk.Frame(master=window, bg=theme.background_main)
+    frame_top_right = tk.Frame(master=window, bg="white")
+    frame_bottom_left = tk.Frame(master=window, bg="white")
+    frame_bottom_right = tk.Frame(master=window, bg="white")
 
-# Grid layout for the four subframes
-frame_top_left.grid(row=0, column=0, sticky="nsew")
-frame_top_right.grid(row=0, column=1, sticky="nsew")
-frame_bottom_left.grid(row=1, column=0, sticky="nsew")
-frame_bottom_right.grid(row=1, column=1, sticky="nsew")
+    # Grid layout for the four subframes
+    frame_top_left.grid(row=0, column=0, sticky="nsew")
+    frame_top_right.grid(row=0, column=1, sticky="nsew")
+    frame_bottom_left.grid(row=1, column=0, sticky="nsew")
+    frame_bottom_right.grid(row=1, column=1, sticky="nsew")
 
-# Variables to store values in information box
+    # Variables to store values in information box
 
-tk_device = tk.StringVar(window, f"Device: {data.device_model}")
-tk_pin = tk.StringVar(window, f"Pin: {data.pin}")
-tk_temperature = tk.StringVar(window, "Temperature: ")
-tk_humidity = tk.StringVar(window, "Humidity: ")
-tk_countdown = tk.StringVar()
-tk_countdown.set(f"The next update: {program_data.tmp_current_delay_sec} second(s)")
-tk_logs = tk.StringVar(window)
-tk_errors = tk.StringVar(window)
+    tk_device = tk.StringVar(window, f"Device: {data.device_model}")
+    tk_pin = tk.StringVar(window, f"Pin: {data.pin}")
+    tk_temperature = tk.StringVar(window, "Temperature: ")
+    tk_humidity = tk.StringVar(window, "Humidity: ")
+    tk_countdown = tk.StringVar()
+    tk_countdown.set(f"The next update: {program_data.tmp_current_delay_sec} second(s)")
+    tk_logs = tk.StringVar(window)
+    tk_errors = tk.StringVar(window)
 
-# Graph box
-frame_graph = tk.Frame(master=window)
-frame_graph.grid(row=0, column=1, rowspan=3, padx=1, pady=1)
+    # Graph box
+    frame_graph = tk.Frame(master=window)
+    frame_graph.grid(row=0, column=1, rowspan=3, padx=1, pady=1)
 
-# Create the GUI elements and layout for each subframe
-# Subframe: Top Right (Graph)
-# Create the figure and axis for the interactive graph
+    # Create the GUI elements and layout for each subframe
+    # Subframe: Top Right (Graph)
+    # Create the figure and axis for the interactive graph
 
-graph_label = tk.Label(frame_top_right, text="Graph", bg=theme.background_title, fg=theme.foreground_main)
-graph_label.pack(fill="x", padx=1)
+    graph_label = tk.Label(frame_top_right, text="Graph", bg=theme.background_title, fg=theme.foreground_main)
+    graph_label.pack(fill="x", padx=1)
 
-fig = Figure(figsize=(5,4), dpi=100, facecolor=theme.background_main)
-a = fig.add_subplot(111)
-a.set_xlabel('Time')
-a.set_ylabel('Value')
-a.tick_params(axis='x', colors=theme.foreground_main)
-a.tick_params(axis='y', colors=theme.foreground_main)
-a.spines['top'].set_color(theme.foreground_main)
-a.spines['bottom'].set_color(theme.foreground_main)
-a.spines['left'].set_color(theme.foreground_main)
-a.spines['right'].set_color(theme.foreground_main)
+    fig = Figure(figsize=(5,4), dpi=100, facecolor=theme.background_main)
+    a = fig.add_subplot(111)
+    a.set_xlabel('Time')
+    a.set_ylabel('Value')
+    a.tick_params(axis='x', colors=theme.foreground_main)
+    a.tick_params(axis='y', colors=theme.foreground_main)
+    a.spines['top'].set_color(theme.foreground_main)
+    a.spines['bottom'].set_color(theme.foreground_main)
+    a.spines['left'].set_color(theme.foreground_main)
+    a.spines['right'].set_color(theme.foreground_main)
 
-a.set_facecolor(theme.background_main)
+    a.set_facecolor(theme.background_main)
 
-# Create the legend and set its properties
-legend = a.legend()
+    # Create the legend and set its properties
+    legend = a.legend()
 
-# Embed the figure in the Tkinter window
-canvas = FigureCanvasTkAgg(fig, master=frame_top_right)
-canvas.draw()
-canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+    # Embed the figure in the Tkinter window
+    canvas = FigureCanvasTkAgg(fig, master=frame_top_right)
+    canvas.draw()
+    canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-# Add the navigation toolbar for basic interaction
-toolbar = NavigationToolbar2Tk(canvas, frame_top_right)
-toolbar.update()
-toolbar.mode = "None"
-canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+    # Add the navigation toolbar for basic interaction
+    toolbar = NavigationToolbar2Tk(canvas, frame_top_right)
+    toolbar.update()
+    toolbar.mode = "None"
+    canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-# Create a Progressbar widget
-delay_progress_bar = ttk.Progressbar(frame_top_right, orient="horizontal", mode="determinate")
-delay_progress_bar.pack(fill="x", padx=20, pady=5)
+    # Create a Progressbar widget
+    delay_progress_bar = ttk.Progressbar(frame_top_right, orient="horizontal", mode="determinate")
+    delay_progress_bar.pack(fill="x", padx=20, pady=5)
 
-# Subframe: Top Left (Information)
-# Labels and Entry widgets
+    # Subframe: Top Left (Information)
+    # Labels and Entry widgets
 
-information_label = tk.Label(frame_top_left, text="Information", bg=theme.background_title, fg=theme.foreground_main)
-information_label.pack(fill="x", padx=1)
+    information_label = tk.Label(frame_top_left, text="Information", bg=theme.background_title, fg=theme.foreground_main)
+    information_label.pack(fill="x", padx=1)
 
-device_label = tk.Label(frame_top_left, textvariable=tk_device, anchor="nw", bg=theme.background_main, fg=theme.foreground_main)
-device_label.pack(fill="x")
+    device_label = tk.Label(frame_top_left, textvariable=tk_device, anchor="nw", bg=theme.background_main, fg=theme.foreground_main)
+    device_label.pack(fill="x")
 
-pin_label = tk.Label(frame_top_left, textvariable=tk_pin, anchor="nw", bg=theme.background_main,fg=theme.foreground_main)
-pin_label.pack(fill="x")
+    pin_label = tk.Label(frame_top_left, textvariable=tk_pin, anchor="nw", bg=theme.background_main,fg=theme.foreground_main)
+    pin_label.pack(fill="x")
 
-temperature_label = tk.Label(frame_top_left, textvariable=tk_temperature, anchor="nw", bg=theme.background_main,fg=theme.foreground_main)
-temperature_label.pack(fill="x")
+    temperature_label = tk.Label(frame_top_left, textvariable=tk_temperature, anchor="nw", bg=theme.background_main,fg=theme.foreground_main)
+    temperature_label.pack(fill="x")
 
-humidity_label = tk.Label(frame_top_left, textvariable=tk_humidity, anchor="nw", bg=theme.background_main,fg=theme.foreground_main)
-humidity_label.pack(fill="x")
+    humidity_label = tk.Label(frame_top_left, textvariable=tk_humidity, anchor="nw", bg=theme.background_main,fg=theme.foreground_main)
+    humidity_label.pack(fill="x")
 
-countdown_label = tk.Label(frame_top_left, textvariable=tk_countdown, anchor="nw", bg=theme.background_main,fg=theme.foreground_main)
-countdown_label.pack(fill="x")
+    countdown_label = tk.Label(frame_top_left, textvariable=tk_countdown, anchor="nw", bg=theme.background_main,fg=theme.foreground_main)
+    countdown_label.pack(fill="x")
 
-# Create a new frame to hold the button widgets
-button_frame = tk.Frame(frame_top_left)
-button_frame.pack(side="bottom",fill="x")
+    # Create a new frame to hold the button widgets
+    button_frame = tk.Frame(frame_top_left)
+    button_frame.pack(side="bottom",fill="x")
 
-graph_reset_button = tk.Button(button_frame, text ="Reset graph", command = reset_values, bg=theme.background_button, fg=theme.foreground_main)
-graph_reset_button.pack(fill="x",side="left")
+    graph_reset_button = tk.Button(button_frame, text ="Reset graph", command = reset_values, bg=theme.background_button, fg=theme.foreground_main)
+    graph_reset_button.pack(fill="x",side="left")
 
-delay_reset_button = tk.Button(button_frame, text ="Skip cycle", command = reset_delay, bg=theme.background_button, fg=theme.foreground_main)
-delay_reset_button.pack(fill="x",side="left")
+    delay_reset_button = tk.Button(button_frame, text ="Skip cycle", command = reset_delay, bg=theme.background_button, fg=theme.foreground_main)
+    delay_reset_button.pack(fill="x",side="left")
 
-settings_button = tk.Button(button_frame, text ="Settings", command = on_settings,bg=theme.background_button, fg=theme.foreground_main)
-settings_button.pack(fill="x")
+    settings_button = tk.Button(button_frame, text ="Settings", command = on_settings,bg=theme.background_button, fg=theme.foreground_main)
+    settings_button.pack(fill="x")
 
-if args.debug:
-    tk_debug = tk.StringVar(window)
-    debug_label = tk.Label(frame_top_left, textvariable=tk_debug, anchor="sw", bg=theme.background_main)
-    debug_label.pack(side="bottom",fill="x")
-# Subframe: Bottom Left (Logs)
-# Labels and Entry widgets
-logs_label = tk.Label(frame_bottom_left, text="Logs", bg=theme.background_title, fg=theme.foreground_main)
-logs_label.pack(fill="x")
+    if args.debug:
+        tk_debug = tk.StringVar(window)
+        debug_label = tk.Label(frame_top_left, textvariable=tk_debug, anchor="sw", bg=theme.background_main)
+        debug_label.pack(side="bottom",fill="x")
+    # Subframe: Bottom Left (Logs)
+    # Labels and Entry widgets
+    logs_label = tk.Label(frame_bottom_left, text="Logs", bg=theme.background_title, fg=theme.foreground_main)
+    logs_label.pack(fill="x")
 
-# Create a Listbox widget
-logs_listbox = tk.Listbox(frame_bottom_left, selectmode=tk.SINGLE,  bg=theme.background_errors_logs, fg = theme.foreground_logs)
+    # Create a Listbox widget
+    logs_listbox = tk.Listbox(frame_bottom_left, selectmode=tk.SINGLE,  bg=theme.background_errors_logs, fg = theme.foreground_logs)
 
-# Create a Scrollbar widget
-logs_scrollbar = tk.Scrollbar(frame_bottom_left, command=logs_listbox.yview)
+    # Create a Scrollbar widget
+    logs_scrollbar = tk.Scrollbar(frame_bottom_left, command=logs_listbox.yview)
 
-# Configure the Listbox to use the Scrollbar
-logs_listbox.config(yscrollcommand=logs_scrollbar.set)
+    # Configure the Listbox to use the Scrollbar
+    logs_listbox.config(yscrollcommand=logs_scrollbar.set)
 
-logs_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-logs_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    logs_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    logs_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-# Subframe: Bottom Right (Errors)
+    # Subframe: Bottom Right (Errors)
 
-# Labels and Entry widgets
-errors_label = tk.Label(frame_bottom_right, text="Errors", bg=theme.background_title, fg=theme.foreground_main)
-errors_label.pack(fill="x",padx=1)
+    # Labels and Entry widgets
+    errors_label = tk.Label(frame_bottom_right, text="Errors", bg=theme.background_title, fg=theme.foreground_main)
+    errors_label.pack(fill="x",padx=1)
 
-# Create a Listbox widget
-errors_listbox = tk.Listbox(frame_bottom_right, selectmode=tk.SINGLE, bg=theme.background_errors_logs, fg = theme.foreground_errors)
+    # Create a Listbox widget
+    errors_listbox = tk.Listbox(frame_bottom_right, selectmode=tk.SINGLE, bg=theme.background_errors_logs, fg = theme.foreground_errors)
 
-# Create a Scrollbar widget
-errors_scrollbar = tk.Scrollbar(frame_bottom_right, command=errors_listbox.yview)
+    # Create a Scrollbar widget
+    errors_scrollbar = tk.Scrollbar(frame_bottom_right, command=errors_listbox.yview)
 
-# Configure the Listbox to use the Scrollbar
-errors_listbox.config(yscrollcommand=errors_scrollbar.set)
+    # Configure the Listbox to use the Scrollbar
+    errors_listbox.config(yscrollcommand=errors_scrollbar.set)
 
-errors_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-errors_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    errors_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    errors_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-if args.autodetect:
-    auto_detect()
+    if args.autodetect:
+        auto_detect()
 
-if args.debug:
-    insert_log_error(1,"Debug mode activated with --debug")
-if data.reset_data:
-    output.startup_reset_data(data,program_data)
+    if args.debug:
+        insert_log_error(1,"Debug mode activated with --debug")
+    if data.reset_data:
+        output.startup_reset_data(data,program_data)
 
-window.protocol("WM_DELETE_WINDOW", on_close)
+    window.protocol("WM_DELETE_WINDOW", on_close)
 
-update_graph()
-window.after(1000, update_temperature_humidity)
-
-window.mainloop()
+    update_graph()
+    window.after(1000, update_temperature_humidity)
+    program_data.tmp_enable_gui = True
+    window.mainloop()

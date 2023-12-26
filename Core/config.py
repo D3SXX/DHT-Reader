@@ -47,6 +47,7 @@ class ProgramData:
     tmp_found_device = False
     tmp_max_value = 0
     tmp_enable_gui = False
+    tmp_enable_cli = False
     tmp_scan_all_pins = False
     tmp_current_delay_sec = 0
     tmp_delay_sec = 0

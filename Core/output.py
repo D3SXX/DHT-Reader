@@ -19,7 +19,6 @@ def txt(temperature, humidity, filename):
 
 # Create an Excel file and an Image
 def xl(temperature, humidity,filename,tmp_folderpath,tmp_filename):
-    
     df = [get_time.date(), temperature, humidity]
     str_time,str_t,str_h, len_tmp = get_tmp(tmp_filename,tmp_folderpath, df)
 
@@ -136,7 +135,7 @@ def check_tmp_folder(filepath):
         
 def startup_reset_data(data,program_data):
     tmp_files = [data.txt_filename,data.xl_filename,data.img_filename]
-    if check_tmp_folder:
+    if check_tmp_folder(program_data.tmp_folderpath):
         tmp_files = tmp_files + [program_data.tmp_folderpath + program_data.xl_tmp_filename,program_data.tmp_folderpath + program_data.img_tmp_filename]
     for filename in tmp_files:
         try:
