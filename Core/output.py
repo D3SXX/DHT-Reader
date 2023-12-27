@@ -1,6 +1,10 @@
 import xlsxwriter
 import matplotlib.pyplot as plt
 import os
+import mysql.connector
+import sqlite3
+import psycopg2
+
 from . import get_time
 
 #Creare a txt file    
@@ -90,9 +94,30 @@ def img(temperature, humidity,filename,tmp_folderpath,tmp_filename):
     print(return_list[0])
     return return_list
 
-def sql():
-    pass
+def sql(temperature, humidity,data):
+    timestamp = get_time.date()
+    if data.db_type == "SQLite":
+        conn = sqlite3.connect(data.sql_filename)
+        cursor = conn.cursor()
+        cursor.execute(f'''
+    CREATE TABLE IF NOT EXISTS {data.device_model} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        time DATETIME,
+        temperature REAL,
+        humidity REAL
+    )
+    
+''')
+        cursor.execute(f'''
+            INSERT INTO {data.device_model} (time, temperature, humidity)
+            VALUES (?, ?, ?)
+        ''', (timestamp, temperature, humidity))
+        conn.commit()
+    return_list = [f"A {data.db_type} database {data.sql_filename} was updated"]
+    return return_list
 
+
+    
 
 def read_tmp(filename,tmp_filepath, data):
     check_tmp_folder(tmp_filepath)

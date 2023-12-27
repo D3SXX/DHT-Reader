@@ -13,6 +13,7 @@ class Data:
     allow_txt = False
     allow_xl = False
     allow_img = False
+    allow_sql = True
     delay_sec = 5
     allow_pulseio = True
     reset_data = False
@@ -20,10 +21,12 @@ class Data:
     temperature_unit = "C"
     graph_environment = "Temperature"
     graph_show = "Both"
+    db_type = "SQLite" 
     # Default filenames
     txt_filename = "T_and_H.txt"
     xl_filename = "T_and_H.xlsx"
-    img_filename = "T_and_H.png"    
+    img_filename = "T_and_H.png"
+    sql_filename = "T_and_H.db"    
     
     def update_from_list(self, data_list):
         self.device_model, self.pin, self.allow_txt, self.allow_xl, self.allow_img, self.delay_sec, self.allow_pulseio, self.reset_data, self.select_theme, self.temperature_unit, self.graph_environment, self.graph_show, self.txt_filename, self.xl_filename, self.img_filename = data_list

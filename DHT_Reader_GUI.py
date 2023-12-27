@@ -15,6 +15,9 @@ try:
     import shutil
     import tkinter as tk
     import tkinter.ttk as ttk
+    import mysql.connector # MySql support
+    import sqlite3 # SQlite support
+    import psycopg2 # Postgresql support
     from Core import config
     from Core import device
     from Core import output
@@ -770,7 +773,8 @@ def update_temperature_humidity():
                 info_xl.extend(output.xl(temperature_hold[-1], humidity_hold[-1], data.xl_filename,program_data.tmp_folderpath,program_data.xl_tmp_filename))
             if data.allow_img:
                 info_xl.extend(output.img(temperature_hold[-1], humidity_hold[-1], data.img_filename,program_data.tmp_folderpath, program_data.img_tmp_filename))
-                    
+            if data.allow_sql:
+                info_xl.append(output.sql(temperature_hold[-1], humidity_hold[-1], data))
             delay_progress_bar["value"] = 0
         else:
             # Update the countdown variable
