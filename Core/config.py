@@ -42,6 +42,7 @@ class ProgramData:
     xl_tmp_filename = "xl_tmp"
     img_tmp_filename = "img_tmp"
     devices = [None,"DHT11","DHT21","DHT22"]
+    sql_formats = ["SQLite"]
     tmp_device_model = None
     tmp_first_pin = 0
     tmp_last_pin = 20

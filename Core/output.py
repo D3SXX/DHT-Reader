@@ -95,18 +95,17 @@ def img(temperature, humidity,filename,tmp_folderpath,tmp_filename):
     return return_list
 
 def sql(temperature, humidity,data):
-    timestamp = get_time.date()
+    timestamp = get_time.time_s()
     if data.db_type == "SQLite":
         conn = sqlite3.connect(data.sql_filename)
         cursor = conn.cursor()
         cursor.execute(f'''
     CREATE TABLE IF NOT EXISTS {data.device_model} (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        time DATETIME,
+        time TEXT,
         temperature REAL,
         humidity REAL
     )
-    
 ''')
         cursor.execute(f'''
             INSERT INTO {data.device_model} (time, temperature, humidity)

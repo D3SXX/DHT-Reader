@@ -339,7 +339,6 @@ def on_settings():
         if option == 0:
             data.allow_txt = not data.allow_txt
             insert_log_error(1,f"Writing to a txt file is set to {data.allow_txt}")
-
         elif option == 1:
             data.allow_xl = not data.allow_xl
             insert_log_error(1,f"Writing to a Excel file is set to {data.allow_xl}")
@@ -354,6 +353,9 @@ def on_settings():
         elif option == 4:
             data.reset_data = not data.reset_data
             insert_log_error(1,f"Reset data at startup is set to {data.reset_data}")
+        elif option == 5:
+            data.allow_sql = not data.allow_sql
+            insert_log_error(1,f"SQL Database output is set to {data.reset_data}")
             
     def on_filename_entry_return(option, value):
         if option == 0:
@@ -417,7 +419,10 @@ def on_settings():
     def on_theme_select(select):
         data.select_theme  = select
         insert_log_error(1,f"Theme selected: {select}")
-        
+    def on_sql_select(select):
+        data.db_type = select
+        insert_log_error(1,f"SQL Database selected: {select}")
+     
     def on_select(event):
         
         global tk_device
@@ -529,7 +534,16 @@ def on_settings():
                 allowimg_checkbox.pack(anchor="w")
                 if data.allow_img:
                     allowimg_checkbox.select()
-                
+                option_var = tk.StringVar(checkbutton_frame)
+                option_var.set(data.db_type) 
+                allow_sql_checkbox = tk.Checkbutton(checkbutton_frame, text="SQL Database",command=lambda: on_checkbox_change(5))
+                allow_sql_checkbox.pack(anchor="nw")
+                if data.allow_sql:
+                    allow_sql_checkbox.select()
+                  
+                option_menu = tk.OptionMenu(checkbutton_frame,option_var,*program_data.sql_formats,command=lambda selected_value: on_sql_select(selected_value))
+                option_menu.pack(fill="x", anchor="e")    
+                    
                 # Create a new frame to hold the Entry widgets
                 entry_frame = ttk.LabelFrame(data_frame, text="Change filenames", padding=5)
                 entry_frame.pack(anchor="nw")          
@@ -666,7 +680,6 @@ def on_settings():
                 theme_label.pack(side="left")
                       
                 option_menu = tk.OptionMenu(theme_change_frame,option_var,*themes_options,command=lambda selected_value: on_theme_select(selected_value))
-
                 option_menu.pack(fill="x", anchor="w")
                 
                 # Set the initial relief of the buttons based on the current graph_show
