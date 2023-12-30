@@ -13,7 +13,7 @@ class Data:
     allow_txt = False
     allow_xl = False
     allow_img = False
-    allow_sql = True
+    allow_sql = False
     delay_sec = 5
     allow_pulseio = True
     reset_data = False
@@ -72,6 +72,8 @@ def create(data):
             'SaveDataInTxt':data.allow_txt,
             'RecordToExcel':data.allow_xl,
             'CreateImage':data.allow_img,
+            'RecordToSQL':data.allow_sql,
+            'SQLType':data.db_type,
             'DelayTime':data.delay_sec,
             'UsePulseio':data.allow_pulseio,
             'ResetData':data.reset_data,
@@ -80,7 +82,8 @@ def create(data):
             'GraphEnviroment':data.graph_environment,
             'TxtFilename':data.txt_filename,
             'ExcelFilename':data.xl_filename,
-            'ImageFilename':data.img_filename
+            'ImageFilename':data.img_filename,
+            'SQLFilename':data.sql_filename
     }
 
     with open(config_file, 'w') as file:
@@ -131,6 +134,8 @@ def read(data):
         data.allow_txt = config.getboolean('dhtreader', 'SaveDataInTxt')
         data.allow_xl = config.getboolean('dhtreader', 'RecordToExcel')
         data.allow_img = config.getboolean('dhtreader','CreateImage')
+        data.allow_sql = config.getboolean('dhtreader','RecordToSQL')
+        data.db_type = config.get('dhtreader','SQLType')
         data.delay_sec = config.getint('dhtreader', 'DelayTime')
         data.allow_pulseio = config.getboolean('dhtreader','UsePulseio')
         data.reset_data = config.getboolean('dhtreader','resetdata')
@@ -140,6 +145,7 @@ def read(data):
         data.txt_filename = config.get('dhtreader','TxtFilename')
         data.xl_filename = config.get('dhtreader','ExcelFilename')
         data.img_filename = config.get('dhtreader','ImageFilename')
+        data.sql_filename = config.get('dhtreader','SQLFilename')
                 
         return True
     except configparser.Error as e:

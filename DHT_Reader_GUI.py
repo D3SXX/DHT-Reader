@@ -370,7 +370,10 @@ def on_settings():
             data.img_filename = value.get()
             print(f"New image filename: {data.img_filename}")
             insert_log_error(1,f"Image filename was changed to {data.img_filename}")
-    
+        elif option == 3:
+            data.sql_filename = value.get()
+            print(f"New SQL filename: {data.img_filename}")
+            insert_log_error(1,f"SQL filename was changed to {data.sql_filename}")
     def change_temperature_unit(unit):
         if unit == "C":
             c_unit_button.config(relief=tk.SUNKEN)
@@ -586,6 +589,18 @@ def on_settings():
                 
                 # Bind the "Return" key event to the Entry widget
                 img_filename_entry.bind("<Return>", lambda event: on_filename_entry_return(2, img_filename_entry_var))    
+  
+                # Change filename for SQL
+                sql_filename_label = ttk.Label(entry_frame, text="Current SQL filename: ")
+                sql_filename_label.pack(anchor="w")
+                
+                sql_filename_entry_var = tk.StringVar(entry_frame)
+                sql_filename_entry_var.set(data.sql_filename)  # Set the default value to the current variable
+                sql_filename_entry = tk.Entry(entry_frame, textvariable=sql_filename_entry_var, bg=theme.background_main, fg=theme.foreground_main)
+                sql_filename_entry.pack(anchor="w")
+                            
+                # Bind the "Return" key event to the Entry widget
+                sql_filename_entry.bind("<Return>", lambda event: on_filename_entry_return(3, sql_filename_entry_var))                    
                 
                 # Create a new frame to hold the optional widgets
                 optional_frame = ttk.LabelFrame(data_frame, text="Optional", padding=5)

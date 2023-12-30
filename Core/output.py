@@ -112,7 +112,9 @@ def sql(temperature, humidity,data):
             VALUES (?, ?, ?)
         ''', (timestamp, temperature, humidity))
         conn.commit()
-    return_list = [f"A {data.db_type} database {data.sql_filename} was updated"]
+    time_took = get_time.time_s() - timestamp
+    return_list = [f"A {data.db_type} database {data.sql_filename} was updated in {time_took} sec"]
+    print(return_list[0])
     return return_list
 
 
